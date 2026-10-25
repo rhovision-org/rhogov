@@ -41,7 +41,7 @@ export const R_WALLET = "https://rhowallet.org";
 
 export const NETWORKS = [
   { id: "playground", label: "Rholang playground", url: "https://playground.rhobot.net", note: "A public rholo dev chain — the default. Free test REV from its faucet." },
-  { id: "testnet", label: "RChain testnet", url: "https://testnet.rhobot.net", note: "The public multi-validator rholo testnet. Free test REV from its faucet — the same one r-wallet uses." },
+  { id: "testnet", label: "Rholo testnet", url: "https://testnet.rhobot.net", note: "The public multi-validator rholo testnet. Free test REV from its faucet — the same one r-wallet uses." },
   { id: "local", label: "Local dev node", url: "http://127.0.0.1:40403", note: "A node on this computer (quantum-os scripts/localnet/run-node.sh, or rnode run -s)." },
 ];
 
