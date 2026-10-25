@@ -255,7 +255,7 @@ export function JoinScreen({ query }: { query: URLSearchParams }) {
     <div class="stack" style={{ maxWidth: 560 }}>
       <h1>You're invited to {c.name}</h1>
       <div class="card stack">
-        <p>{c.name} makes decisions together on RChain with rhogov: groups, votes, delegation and trust — all recorded on chain.</p>
+        <p>{c.name} makes decisions together on Rholo with rhogov: groups, votes, delegation and trust — all recorded on chain.</p>
         {foreign ? (
           <div class="callout warn stack">
             <b>This invite points to a network you didn't choose: <span class="mono">{c.node}</span></b>

@@ -1,6 +1,6 @@
 # rhogov user guide
 
-[rhogov](https://rhovision-org.github.io/rhogov/#/) helps a group of people decide things together on RChain. You can vote,
+[rhogov](https://rhovision-org.github.io/rhogov/#/) helps a group of people decide things together on Rholo. You can vote,
 hand your vote to someone you trust, vouch for each other, hold each other to
 account, send each other messages, and run decisions across several kinds of
 stakeholders. Everything is recorded on the blockchain, and no administrator
@@ -37,7 +37,7 @@ Open [rhogov](https://rhovision-org.github.io/rhogov). The first screen walks yo
 
 **Step 1: choose a network.** A network is the blockchain your community uses.
 The **Rholang playground** is selected for you. It's free, it hands out test
-money, and it's the right place to start. The **RChain testnet** works the same
+money, and it's the right place to start. The **Rholo testnet** works the same
 way and is the shared public test network. Pick another node only if your
 community told you to.
 

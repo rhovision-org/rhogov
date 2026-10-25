@@ -2,7 +2,7 @@
 
 **[User guide →](docs/user-guide.md)** · **[Open the app →](https://rhovision-org.github.io/rhogov/)**
 
-**Decide things together on RChain.** An intuitive governance app for the
+**Decide things together on Rholo.** An intuitive governance app for the
 [rholo](https://github.com/rhovision-org/rholo) node: groups, liquid
 democracy, a web of trust with accountability, multi-stakeholder councils, and inboxes,
 all on chain.
