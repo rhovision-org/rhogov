@@ -79,8 +79,10 @@ test("when the browser can't keep a note of the signature, nothing is sent", asy
     };
   });
   await open(alice, groupHash);
+  // Count only this write: with a name directory, putting Alice's name on the new
+  // community's list is a separate background deploy that can land meanwhile.
   let deploys = 0;
-  await alice.route("**/api/deploy", async (route) => { deploys++; await route.continue(); });
+  await alice.route("**/api/deploy", async (route) => { if (route.request().postData()?.includes("Reviewed club")) deploys++; await route.continue(); });
   await alice.getByRole("button", { name: "Leave group" }).click();
   await expect(alice.getByText(/couldn't keep a note of the signature, so nothing was sent/)).toBeVisible();
   expect(deploys, "nothing sent").toBe(0);
@@ -96,8 +98,10 @@ test("with review on, the exact rholang is shown, and Cancel signs nothing", asy
   await alice.getByLabel("Show me the exact rholang before I sign each action").check();
 
   await open(alice, "#/groups");
+  // Count only this write: with a name directory, putting Alice's name on the new
+  // community's list is a separate background deploy that can land meanwhile.
   let deploys = 0;
-  await alice.route("**/api/deploy", async (route) => { deploys++; await route.continue(); });
+  await alice.route("**/api/deploy", async (route) => { if (route.request().postData()?.includes("Reviewed club")) deploys++; await route.continue(); });
   await alice.getByRole("button", { name: "＋ New group" }).click();
   await alice.getByPlaceholder("e.g. Budget committee").fill("Reviewed club");
   await alice.getByRole("button", { name: "Create group" }).click();
