@@ -92,6 +92,8 @@ export function InboxScreen() {
     useState(false);
   const [notificationNote, setNotificationNote] =
     useState("");
+  // Read on chain without collecting (#2): shown here, never archived.
+  const [peeked, setPeeked] = useState<InboxMessage[] | null>(null);
 
   const readToken = useRef(0);
 
@@ -99,6 +101,7 @@ export function InboxScreen() {
     readToken.current++;
 
     setMsgs(archived(me, c));
+    setPeeked(null);
     setIncoming(null);
     setReading(false);
     setTransferError("");
@@ -154,6 +157,14 @@ export function InboxScreen() {
     }
 
     checkInbox(true);
+  };
+
+  const peek = async () => {
+    const got = await act("Reading your messages on chain", (t) => G.peek(t), {
+      risk: "routine",
+      key: `peek:${c.inbox}:${me}`,
+    });
+    if (got) setPeeked(got);
   };
 
   const remove = (m: InboxMessage) => {
@@ -377,12 +388,21 @@ export function InboxScreen() {
                   chain.
                 </span>
 
-                <button
-                  class="primary"
-                  onClick={collect}
-                >
-                  Collect
-                </button>
+                <div class="row">
+                  <button
+                    class="ghost"
+                    onClick={peek}
+                    title="Shows them here and leaves them on chain, so any browser with your key can read them too. Costs a small fee each time."
+                  >
+                    Read, leave on chain
+                  </button>
+                  <button
+                    class="primary"
+                    onClick={collect}
+                  >
+                    Collect
+                  </button>
+                </div>
               </div>
             )
             : (
@@ -393,6 +413,24 @@ export function InboxScreen() {
             )
         }
       </Loading>
+      {peeked && (
+        <div class="section card soft stack">
+          <div class="row between">
+            <b>Still on chain ({peeked.length})</b>
+            <button class="ghost small" onClick={() => setPeeked(null)}>Hide</button>
+          </div>
+          <p class="small muted">Read, not collected: they stay in the contract, so any browser with your key can read them again, and this browser doesn't keep them. Collect takes them off the chain and keeps them here.</p>
+          {!peeked.length && <p class="muted small">Nothing is waiting in your inbox on chain.</p>}
+          {[...peeked].reverse().map((m) => (
+            <div class="card">
+              <div class="row between small muted"><Addr addr={m.from} /><span>{m.at ? new Date(m.at).toLocaleString() : ""}</span></div>
+              {m.type === "invite" && <span class="badge warn">Invitation</span>}
+              {m.fields.subject && <h3 style={{ marginTop: ".5rem" }}>{m.fields.subject}</h3>}
+              <p style={{ whiteSpace: "pre-wrap", margin: ".3rem 0 0" }}>{m.fields.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
       {groupsRead.error && !waiting.error && (
         <div class="callout warn small" role="status">
           <b>Couldn't read this community's groups.</b> Invitation status may be out of date.{" "}

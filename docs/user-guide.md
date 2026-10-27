@@ -311,6 +311,11 @@ and send.
   shown to them.
 - **Collect** takes your messages out of the chain and keeps them in your
   browser. After that they're gone from the chain, so nobody else can take them.
+- **Read, leave on chain** shows your waiting messages without collecting
+  them, so you can read them from any browser signed in with your key, as often
+  as you like. Each read is a signed action with a small fee. The messages aren't
+  kept in the browser, and they stay in chain state, unencrypted, until you
+  collect them.
 - **Invitations and requests to join** appear in their own section, read from the
   group's on-chain state. They show up in any browser signed in with your key —
   even if the note that announced one was collected somewhere else — and their

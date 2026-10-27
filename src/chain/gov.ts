@@ -618,19 +618,18 @@ export class Gov {
       if (e instanceof GovError && /inbox doesn't exist/.test(e.message)) return [];
       throw e;
     }
-    const r = asList(v[0] ?? null);
-    const byType = asMap(r[1] ?? null);
-    const out: InboxMessage[] = [];
-    for (const list of Object.values(byType)) {
-      for (const m of asList(list as RhoValue)) {
-        const mm = asMap(m);
-        out.push({
-          from: String(mm.from ?? ""), type: String(mm.type ?? ""), at: Number(mm.at ?? 0),
-          fields: Object.fromEntries(Object.entries(mm).filter(([k]) => !["from", "type", "at"].includes(k)).map(([k, x]) => [k, typeof x === "object" ? JSON.stringify(x) : String(x)])),
-        });
-      }
-    }
-    return out.sort((a, b) => a.at - b.at);
+    return messagesOf(asList(v[0] ?? null)[1] ?? null);
+  }
+
+  /**
+   * Read your default locker WITHOUT consuming it (#2): the Inbox's self `export`
+   * verb returns your lockers and leaves them as they are, so any browser with
+   * your key can read the same messages again. A signed deploy, so it costs a fee.
+   */
+  async peek(t?: (s: string) => void): Promise<InboxMessage[]> {
+    const v = await this.write(this.c.inbox, "export", [], t);
+    const lockers = asMap(asList(v[0] ?? null)[1] ?? null);
+    return messagesOf(asMap((lockers.inbox ?? null) as RhoValue).msgs ?? null);
   }
 
   // --- installation ----------------------------------------------------------
@@ -671,3 +670,19 @@ export class Gov {
 }
 
 export interface InboxMessage { from: string; type: string; at: number; fields: Record<string, string> }
+
+/** The messages in a locker's `msgs` map (type → list), oldest first. */
+function messagesOf(msgs: RhoValue): InboxMessage[] {
+  const byType = asMap(msgs);
+  const out: InboxMessage[] = [];
+  for (const list of Object.values(byType)) {
+    for (const m of asList(list as RhoValue)) {
+      const mm = asMap(m);
+      out.push({
+        from: String(mm.from ?? ""), type: String(mm.type ?? ""), at: Number(mm.at ?? 0),
+        fields: Object.fromEntries(Object.entries(mm).filter(([k]) => !["from", "type", "at"].includes(k)).map(([k, x]) => [k, typeof x === "object" ? JSON.stringify(x) : String(x)])),
+      });
+    }
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
