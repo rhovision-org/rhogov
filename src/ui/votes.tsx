@@ -1,10 +1,14 @@
 // votes.tsx — issues: create, cast (approval or ranked), and see the node's weighted result.
 import { useEffect, useState } from "preact/hooks";
-import { type Group, type Issue, type Outcome, isMemberOf, makeId, q, readRecord } from "../chain/gov";
+import { type Group, type Issue, type Outcome, isMemberOf, makeId, q, qList, qSet, readRecord } from "../chain/gov";
 import { gov, myAddr } from "../state";
 import { DelegateModal, learnFrom } from "./groups";
-import { isCouncilId } from "../chain/council";
+import { aboutIssueId, isCouncilId } from "../chain/council";
 import { Addr, Info, Loading, Modal, PLAIN, act, go, nameOf, useAsync } from "./kit";
+import { Markdown } from "./markdown";
+
+/** Long enough for a page of context; every character is stored on chain and costs phlo. */
+const ABOUT_MAX = 5000;
 
 const STATUS: Record<Issue["status"], [string, string]> = {
   open: ["Voting open", "accent"],
@@ -40,15 +44,22 @@ export function IssueCard({ i, g }: { i: Issue; g?: Group }) {
 export function NewIssueModal({ g, onClose }: { g: Group; onClose: () => void }) {
   const G = gov.value!;
   const [title, setTitle] = useState("");
+  const [about, setAbout] = useState("");
   const [opts, setOpts] = useState<string[]>(["", ""]);
   const [mode, setMode] = useState<"approval" | "ranked">("approval");
   const clean = [...new Set(opts.map((o) => o.trim()).filter(Boolean))];
-  const ok = title.trim() && clean.length >= 2;
+  const ok = title.trim() && clean.length >= 2 && about.length <= ABOUT_MAX;
   const create = async () => {
     const iid = makeId(title);
     onClose();
     const roll = g.members.map((m) => m.addr);
-    const r = await act(`Opening “${title.trim()}”`, (t) => G.openIssue(iid, g.id, title.trim(), mode, clean, roll, t), {
+    // The description rides in the same deploy, as the title of `<iid>.about` (README, "stored as").
+    const r = await act(`Opening “${title.trim()}”`, (t) => about.trim()
+      ? G.batch("issue", [
+        ["open", [q(iid), q(g.id), q(title.trim()), q(mode), qList(clean), qSet(roll)]],
+        ["open", [q(aboutIssueId(iid)), q(g.id), q(about.trim()), q("about"), "[]", qSet([])]],
+      ], t)
+      : G.openIssue(iid, g.id, title.trim(), mode, clean, roll, t), {
       risk: "consequential", key: `openIssue:${iid}`, done: "The vote is open.",
     });
     if (r) go(issueHref(g.id, iid));
@@ -58,6 +69,12 @@ export function NewIssueModal({ g, onClose }: { g: Group; onClose: () => void })
       actions={<><button onClick={onClose}>Cancel</button><button class="primary" disabled={!ok} onClick={create}>Open vote</button></>}>
       <div class="stack">
         <label class="field">Question<input autoFocus value={title} placeholder="e.g. Which venue for the spring meetup?" onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
+        <label class="field">Description <span class="muted small">(optional)</span>
+          <span class="hint">Background, links, what people need to know. **bold**, *italic*, lists and https links work. It's stored on chain with the vote, in plain text anyone can read, and it can't be edited once the vote is open.</span>
+          <textarea rows={5} value={about} onInput={(e) => setAbout((e.target as HTMLTextAreaElement).value)} />
+          {about.length > ABOUT_MAX && <span class="badge warn">{about.length - ABOUT_MAX} characters over the {ABOUT_MAX} limit.</span>}
+          {about.trim() && <details class="small"><summary>Preview</summary><Markdown text={about} /></details>}
+        </label>
         <div class="field"><b>Options</b>
           {opts.map((o, k) => (
             <div class="row">
@@ -84,15 +101,16 @@ export function NewIssueModal({ g, onClose }: { g: Group; onClose: () => void })
 export function IssueScreen({ gid, iid }: { gid: string; iid: string }) {
   const G = gov.value!;
   const a = useAsync(async () => {
-    const [i, g, out] = await Promise.all([G.issue(iid), G.group(gid), G.outcome(gid, iid)]);
+    const [i, g, out, about] = await Promise.all([G.issue(iid), G.group(gid), G.outcome(gid, iid), G.issue(aboutIssueId(iid)).catch(() => null)]);
     if (g) learnFrom([g], { community: G.c, addr: myAddr.value ?? "" });
-    return { i, g, out };
+    // Only the opener's description counts: anyone could open an issue under that id.
+    return { i, g, out, about: about && i && about.by === i.by ? about.title : "" };
   }, [G.c.issue, gid, iid]);
   return (
     <Loading a={a}>{() => {
-      const { i, g, out } = a.data!;
+      const { i, g, out, about } = a.data!;
       if (!i || !g) return <div class="empty">This vote doesn't exist. <a href="#/groups">Back to groups</a></div>;
-      return <IssueView i={i} g={g} out={out} />;
+      return <IssueView i={i} g={g} out={out} about={about} />;
     }}</Loading>
   );
 }
@@ -100,7 +118,7 @@ export function IssueScreen({ gid, iid }: { gid: string; iid: string }) {
 /** Roll top-ups this tab has already sent, by issue and newcomers, so a failed one isn't retried on every refresh. */
 const toppedUp = new Set<string>();
 
-function IssueView({ i, g, out }: { i: Issue; g: Group; out: Outcome }) {
+function IssueView({ i, g, out, about }: { i: Issue; g: Group; out: Outcome; about: string }) {
   const G = gov.value!;
   const me = myAddr.value;
   const onRoll = !!me && (i.voters.includes(me) || i.guests.includes(me));
@@ -164,6 +182,7 @@ function IssueView({ i, g, out }: { i: Issue; g: Group; out: Outcome }) {
         <span>· {i.mode === "ranked" ? "Ranked choice" : "Approval voting"}</span>
         <span>· {Object.keys(i.ballots).length} of {i.voters.length} voted</span>
       </div>
+      {about && <div class="card soft" style={{ marginBottom: "1rem" }}><Markdown text={about} /></div>}
       {lateRoll.length > 0 && (
         <div class="callout warn small" style={{ marginBottom: "1rem" }}>
           Who may vote was changed {lateRoll.length === 1 ? "once" : `${lateRoll.length} times`} after voting began

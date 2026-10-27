@@ -1,0 +1,63 @@
+# The browser tests against real nodes (#7), nightly and on demand. Not on every
+# push: a full run takes minutes on a local node and 15–25 on the playground.
+#
+#   localnet   — quantum-os's committed bin/rnode, fresh genesis. The baseline:
+#                if this is red, rhogov (or the vendored contracts) broke.
+#   playground — https://playground.rhobot.net, the app's default network. Red
+#                here with localnet green means the playground or its node changed.
+#
+# The test keys (tests/e2e/helpers.ts) are funded at genesis on both. They are
+# throwaway keys, committed on purpose; nothing here needs a secret.
+name: e2e
+on:
+  schedule: [{ cron: "17 5 * * *" }] # 05:17 UTC
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which node to test against"
+        type: choice
+        options: [both, localnet, playground]
+        default: both
+concurrency: { group: e2e, cancel-in-progress: false }
+jobs:
+  localnet:
+    if: github.event_name == 'schedule' || inputs.target != 'playground'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: rhovision-org/quantum-os, path: quantum-os, sparse-checkout: "bin\nscripts/localnet" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start a local node
+        run: |
+          (bash quantum-os/scripts/localnet/run-node.sh --fresh > rnode.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:40403/status && exit 0; sleep 2; done
+          cat rnode.log; exit 1
+      - run: npm run build
+      - run: npm run test:e2e
+        env: { RHOGOV_NODE: "http://127.0.0.1:40403" }
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: e2e-localnet, path: "test-results\nrnode.log", retention-days: 14 }
+
+  playground:
+    if: github.event_name == 'schedule' || inputs.target != 'localnet'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      # One run a night keeps the newcomer test inside the faucet's rate limit.
+      - run: npm run test:e2e
+        env: { RHOGOV_NODE: "https://playground.rhobot.net" }
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: e2e-playground, path: test-results, retention-days: 14 }

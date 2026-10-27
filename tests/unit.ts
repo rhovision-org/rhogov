@@ -9,6 +9,7 @@ import {
   type MembershipEntry,
 } from "../src/state";
 import { inviteRows } from "../src/ui/invitations";
+import { inline as mdInline, parse as mdParse, safeHref } from "../src/markdown";
 import { filterPeople, looksLike, nameError, resolvePerson, suggestNames } from "../src/chain/people";
 import { revAddressOf } from "../src/chain/keys";
 import { decryptKeystore, encryptKeystore, ethAddressOf, keystoreFileName, looksLikeKeystore } from "../src/chain/keystore";
@@ -1042,6 +1043,17 @@ ok("non-argument rejected", decodeArg("hello") === null);
     else delete (globalThis as { localStorage?: Storage }).localStorage;
   }
 }
+
+// A vote's description (#94): the Markdown subset, and only web links.
+ok("md: paragraph with a line break", eq(mdParse("a\nb"), [{ t: "p", c: [{ t: "text", s: "a" }, { t: "br" }, { t: "text", s: "b" }] }]));
+ok("md: bullet list", eq(mdParse("- x\n- y"), [{ t: "ul", items: [[{ t: "text", s: "x" }], [{ t: "text", s: "y" }]] }]));
+ok("md: numbered list and heading", eq(mdParse("# H\n1. one").map((b) => b.t), ["h", "ol"]));
+ok("md: code fence keeps its text", eq(mdParse("```\n**not bold**\n```"), [{ t: "pre", s: "**not bold**" }]));
+ok("md: bold, italic, code", eq(mdInline("**b** *i* `c`").map((x) => x.t), ["b", "text", "i", "text", "code"]));
+ok("md: link", eq(mdInline("[docs](https://ex.org/a)"), [{ t: "a", href: "https://ex.org/a", c: [{ t: "text", s: "docs" }] }]));
+ok("md: bare URL, trailing period left out", eq(mdInline("see https://ex.org/x."), [{ t: "text", s: "see " }, { t: "a", href: "https://ex.org/x", c: [{ t: "text", s: "https://ex.org/x" }] }, { t: "text", s: "." }]));
+ok("md: javascript: link stays text", eq(mdInline("[x](javascript:alert(1))").every((x) => x.t === "text"), true));
+ok("md: safeHref refuses data:", safeHref("data:text/html,hi") === null && safeHref("http://a.b") === "http://a.b");
 
 console.log(`unit: ${pass}/${pass + fail} passed`);
 process.exit(fail ? 1 : 0);

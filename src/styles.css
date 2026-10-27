@@ -207,3 +207,11 @@ details summary { cursor: pointer; color: var(--muted); }
 .person-field .choices { display: flex; flex-wrap: wrap; gap: .35rem; }
 .person-field .choice-name { padding: .3rem .7rem; border-radius: 999px; font-size: .9rem; }
 .people-filter { margin-bottom: .2rem; }
+
+/* A description written in the small Markdown subset (src/markdown.ts). */
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p, .md ul, .md ol, .md pre { margin: .5rem 0; }
+.md h4 { margin: .8rem 0 .3rem; }
+.md pre { white-space: pre-wrap; overflow-x: auto; background: var(--surface-2); padding: .5rem; border-radius: 6px; }
+.md a { overflow-wrap: anywhere; }

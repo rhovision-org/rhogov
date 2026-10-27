@@ -4,7 +4,7 @@ import { type Community, type Group, type Issue, type Standing, asksId, isMember
 import { displayName, forgetMembership, gov, learnGroups, learnNames, myAddr } from "../state";
 import { Addr, Info, Loading, Modal, PLAIN, PersonField, Trust, act, go, href, nameOf, useAsync, usePeopleFilter } from "./kit";
 import { IssueCard, NewIssueModal } from "./votes";
-import { COUNCIL_PREFIX } from "../chain/council";
+import { COUNCIL_PREFIX, isAuxIssue } from "../chain/council";
 
 /** The contract labels a group's creator with the group's own name; that is not a person's name. */
 export const memberLabel = (g: Group, addr: string) => {
@@ -110,7 +110,8 @@ function NewGroupModal({ onClose }: { onClose: () => void }) {
 export function GroupScreen({ gid, tab = "votes" }: { gid: string; tab?: string }) {
   const G = gov.value!;
   const a = useAsync(async () => {
-    const [g, st, issues] = await Promise.all([G.group(gid), G.standing(gid), G.issues(gid)]);
+    const [g, st, all] = await Promise.all([G.group(gid), G.standing(gid), G.issues(gid)]);
+    const issues = all.filter((i) => !isAuxIssue(i.id));
     if (g) learnFrom([g], { community: G.c, addr: myAddr.value ?? "" });
     else forgetMembership(gid);
     return { g, st, issues };

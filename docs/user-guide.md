@@ -185,8 +185,22 @@ settings, and **Leave group**).
 
 ## 4. Voting
 
-Open a group and press **＋ New vote**. Write the question, add at least two
-options, and choose how people vote:
+Open a group and press **＋ New vote**. Write the question, an optional
+**description**, add at least two options, and choose how people vote.
+
+The description is for whatever people need to know to vote: background, and
+links to anything they should look at (a design, a document, a discussion).
+It takes a little formatting: `**bold**`, `*italic*`, lists starting with `-` or
+`1.`, `` `code` ``, and links, either pasted as `https://…` or written
+`[label](https://…)`. **Preview** shows how it will look. Only web links work,
+and pictures aren't shown inline: displaying one would make rhogov fetch it
+from someone else's server, and rhogov talks to nothing but your node. Link to
+the picture instead. Files can't be uploaded, for the same reason; put them
+somewhere people can reach and link them. The description is stored on chain
+with the vote, in plain text anyone can read, and can't be edited after the
+vote opens.
+
+The ways people can vote:
 
 - **Approval**: tick every option you're happy with. The option with the most
   support wins.
@@ -297,6 +311,11 @@ and send.
   shown to them.
 - **Collect** takes your messages out of the chain and keeps them in your
   browser. After that they're gone from the chain, so nobody else can take them.
+- **Read, leave on chain** shows your waiting messages without collecting
+  them, so you can read them from any browser signed in with your key, as often
+  as you like. Each read is a signed action with a small fee. The messages aren't
+  kept in the browser, and they stay in chain state, unencrypted, until you
+  collect them.
 - **Invitations and requests to join** appear in their own section, read from the
   group's on-chain state. They show up in any browser signed in with your key —
   even if the note that announced one was collected somewhere else — and their
@@ -466,6 +485,11 @@ everyone waiting to the votes at once, when that's what you want.
 
 **Invite someone to a stakeholder group** on the same card brings in someone
 new: they get a message with a link, and show as waiting once they've joined.
+People this community already knows but the council doesn't (their name is on
+the community's list, or they're in one of its other groups) are listed at the
+top, so you can pick them rather than type; anyone else you type by name or
+paste their address. Someone already invited to the stakeholder group you chose
+is marked **invited**.
 
 ## 10. Your account and your key
 

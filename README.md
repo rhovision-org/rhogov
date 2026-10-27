@@ -128,6 +128,7 @@ any rgov-core client can read them:
 | council | Group `council-<slug>` |
 | stakeholder group | Group `<councilId>.<slug>` |
 | voting-power estimates | Issue `<councilId>.weights` (mode `estimate`; a ballot is `["<groupId>=<percent>", …]`; its title is the council's purpose) |
+| a vote's description | Issue `<voteId>.about` (mode `about`, empty roll; its title is the text, in a small Markdown subset; shown only when its opener is the vote's opener) |
 | decision | Issue in the council (mode `approval`) |
 | pros and cons | Issue `<decisionId>.args` (options are `pro\|<option>\|<text>`; ballots are endorsements; its title is the background) |
 | phase and decision of record | the facilitator's entry in the decision's `results` |
@@ -190,6 +191,11 @@ RHOGOV_NODE=https://playground.rhobot.net npm run test:e2e -- newcomer   # fresh
 them too (`tests/chain-check.ts --node https://playground.rhobot.net`). Behind an
 intercepting proxy, set `RHOGOV_PROXY=1` for the browser tests and
 `NODE_USE_ENV_PROXY=1` for the Node ones.
+
+GitHub Actions runs the browser tests every night (`.github/workflows/e2e.yml`), once
+against a fresh local node built from quantum-os's `bin/rnode` and once against the
+playground. Red on the playground with the local run green means the playground
+changed, not rhogov. **Run workflow** on the e2e workflow starts it by hand.
 
 ## Layout
 
