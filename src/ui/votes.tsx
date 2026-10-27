@@ -102,6 +102,8 @@ function IssueView({ i, g, out }: { i: Issue; g: Group; out: Outcome }) {
   const me = myAddr.value;
   const onRoll = !!me && (i.voters.includes(me) || i.guests.includes(me));
   const isOpener = me === i.by;
+  // Issue/4 logs every roll change with the ballots already cast (quantum-os#244).
+  const lateRoll = i.rollLog.filter((e) => e.ballotsBefore > 0);
   const member = isMemberOf(g, me);
   const missing = g.members.map((m) => m.addr).filter((a) => !i.voters.includes(a));
   const [delegating, setDelegating] = useState(false);
@@ -144,6 +146,13 @@ function IssueView({ i, g, out }: { i: Issue; g: Group; out: Outcome }) {
         <span>· {i.mode === "ranked" ? "Ranked choice" : "Approval voting"}</span>
         <span>· {Object.keys(i.ballots).length} of {i.voters.length} voted</span>
       </div>
+      {lateRoll.length > 0 && (
+        <div class="callout warn small" style={{ marginBottom: "1rem" }}>
+          Who may vote was changed {lateRoll.length === 1 ? "once" : `${lateRoll.length} times`} after voting began
+          (last: {lateRoll[lateRoll.length - 1].voters} voters, with {lateRoll[lateRoll.length - 1].ballotsBefore} ballot{lateRoll[lateRoll.length - 1].ballotsBefore === 1 ? "" : "s"} already cast).
+          The vote's contract logs every change publicly, so this is the full record.
+        </div>
+      )}
 
       <div class="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", alignItems: "start" }}>
         <div class="card">

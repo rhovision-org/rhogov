@@ -158,8 +158,8 @@ asking to join" on Home and in Help, and on the **Members** tab each request is 
 row marked **Pending approval**. **Approve…** does everything in one step: it
 invites the person and, if you choose a level, records how much you trust them
 ([section 6](#6-trust)). They then see "You're invited to join" on Home and join
-with one click. An approval writes their address into the group's public state
-and can't be withdrawn; a request you don't approve simply stays pending.
+with one click. An approval writes their address into the group's public state;
+a request you don't approve simply stays pending.
 
 **Invitations are chain state.** An invitation records your address in the
 group's public state, so it follows your key to any browser or device, and it
@@ -167,6 +167,18 @@ stays until you join. The note an admin can optionally send is a separate inbox
 message: collecting it keeps it in that browser only, and deleting the note does
 not cancel the invitation. rhogov shows the invitation as pending in the group
 and in your Inbox until you join.
+
+**Withdrawing an invitation.** Until the person joins, an admin can press
+**Withdraw** beside their address under "Invited, not joined yet" on the
+**Members** tab. That removes it from the group's state, though the deploy that
+made it stays in the chain's history. Communities set up before late October 2026
+run older contracts with no way to withdraw an invitation, so there the button
+doesn't appear and the invite dialog says so.
+
+**The last admin.** A group needs at least one admin, or nobody could invite or
+promote anyone again. So the only admin of a group can't leave while others
+remain: make someone else an admin first. The group's contract enforces this on
+communities set up since late October 2026; on older ones rhogov warns instead.
 
 A group's page has three tabs: **Votes**, **Members**, and **About** (its
 settings, and **Leave group**).

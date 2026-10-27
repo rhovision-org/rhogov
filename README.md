@@ -222,9 +222,14 @@ tests/       chain-check.ts (live API)   unit.ts   e2e/ (Playwright)
   addresses, and there is no on-chain registry of them. The invite link is the portable
   artifact: open it (or enter the addresses) on another device. Group membership,
   invitations and council seats themselves are on chain.
-- **An invitation cannot be withdrawn.** The Group contract has no `uninvite`; an invitation
-  stays published until the invitee joins (quantum-os#246). The invite dialog says so before
-  the write. Declining is not a chain state, so rhogov does not pretend to remember one.
+- **A community keeps the contracts it was installed with.** Group/4 and Issue/4
+  (quantum-os#247–#250) added withdrawing an invitation (`uninvite`), a guard against a group
+  losing its last admin, a public log of every change to a vote's roll, and an opener-only
+  result. Communities installed before them have none of these: there an invitation stays
+  published until the invitee joins, and rhogov warns where the newer contracts refuse.
+  rhogov asks the Issue contract which it is talking to and shows only what it supports.
+  A withdrawn invitation leaves the group's state but not the chain's history. Declining is
+  not a chain state, so rhogov does not pretend to remember one.
 
 ## License
 

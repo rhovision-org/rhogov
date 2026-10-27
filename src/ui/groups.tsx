@@ -195,6 +195,12 @@ function Votes({ g, issues, member }: { g: Group; issues: Issue[]; member: boole
 
 // --- members, trust, delegation, censure --------------------------------------------
 
+/** Whether this community runs Group/4 + Issue/4 (uninvite, last-admin guard, roll log). False until known. */
+export function useV4(): boolean {
+  const G = gov.value;
+  return useAsync(() => (G ? G.hasV4Contracts() : Promise.resolve(false)), [G]).data === true;
+}
+
 const LEVELS = ["No trust", "A little", "Some", "Solid", "Strong", "Full (admin)"];
 
 function Members({ g, st }: { g: Group; st: Standing }) {
@@ -210,6 +216,7 @@ function Members({ g, st }: { g: Group; st: Standing }) {
   const [rating, setRating] = useState<string | null>(null);
   const [delegating, setDelegating] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const v4 = useV4();
   const censuredByMe = (addr: string) => !!me && (g.censures[me] ?? []).includes(addr);
   const censureCount = (addr: string) => Object.values(g.censures).filter((ts) => ts.includes(addr)).length;
   const ranked = [...g.members].sort((x, y) => (st.levels[y.addr] ?? 0) - (st.levels[x.addr] ?? 0) || x.addr.localeCompare(y.addr));
@@ -298,7 +305,11 @@ function Members({ g, st }: { g: Group; st: Standing }) {
           })}
         </div>
       </div>
-      {g.invited.length > 0 && <div class="small muted">Invited, not joined yet: {g.invited.map((a) => <span style={{ marginRight: ".6rem" }}><Addr addr={a} avatar={false} /></span>)}</div>}
+      {g.invited.length > 0 && <div class="small muted">Invited, not joined yet: {g.invited.map((a) => (
+        <span class="row" style={{ display: "inline-flex", marginRight: ".6rem" }}><Addr addr={a} avatar={false} />
+          {admin && v4 && <button class="small ghost" title="Take the invitation back. It leaves the group's current state; the deploy that made it stays in the chain's history."
+            onClick={() => act(`Withdrawing ${nameOf(a)}'s invitation`, (t) => G.uninvite(g.id, a, t), { risk: "consequential", key: `uninvite:${g.id}:${a}`, done: "Invitation withdrawn." })}>Withdraw</button>}
+        </span>))}</div>}
       <Info title="How trust and delegation work in this group">
         <p><b>Trust</b> starts with the admins (level 5) and flows down: a rating you give can be at most one below your own level, so two members nobody trusts can't vouch each other up. The node computes everyone's level with its <span class="mono">rho:gov:trustLevels</span> function; each member's vote weighs <b>1 + their level</b>. Until anyone rates anyone, every vote weighs 1.</p>
         <p><b>Delegation</b> is liquid: if you don't vote, your weight passes to your delegate — and on to theirs if they don't vote either. Voting yourself always overrides it. Loops abstain.</p>
@@ -477,12 +488,13 @@ function InviteModal({ g, onClose }: { g: Group; onClose: () => void }) {
   const G = gov.value!;
   const [addr, setAddr] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
+  const v4 = useV4();
   const already = isMemberOf(g, addr);
   const send = async () => {
     const a = addr!;
     onClose();
     if (g.policy === "invite") await act(`Inviting ${nameOf(a)}`, (t) => G.invite(g.id, a, t), {
-      risk: "irreversible",
+      risk: v4 ? "consequential" : "irreversible",
       key: `invite:${g.id}:${a}`,
       done: "Invitation recorded on chain.",
     });
@@ -495,7 +507,9 @@ function InviteModal({ g, onClose }: { g: Group; onClose: () => void }) {
         <PersonField label="Who" onChange={setAddr} />
         {already && <span class="badge warn">{nameOf(addr!)} is already a member.</span>}
         <label class="row"><input type="checkbox" style={{ width: "auto" }} checked={notify} onChange={(e) => setNotify((e.target as HTMLInputElement).checked)} /> Also send them a message with a link to join</label>
-        <p class="small muted">An invitation writes their address into this group's public state, where anyone can read it. It cannot be withdrawn — it stays there until they join, and anyone whose key is lost keeps their invitation published.</p>
+        {v4
+          ? <p class="small muted">An invitation writes their address into this group's public state, where anyone can read it. An admin can withdraw it until they join (Members & trust); that removes it from the group's state, but the deploy that made it stays in the chain's history.</p>
+          : <p class="small muted">An invitation writes their address into this group's public state, where anyone can read it. It cannot be withdrawn: this community's contracts predate withdrawing invitations, so it stays there until they join, and anyone whose key is lost keeps their invitation published.</p>}
         {g.policy === "open" && <p class="muted small">This group is open, so anyone can already join; the message just lets them know.</p>}
       </div>
     </Modal>
@@ -505,6 +519,10 @@ function InviteModal({ g, onClose }: { g: Group; onClose: () => void }) {
 function About({ g }: { g: Group }) {
   const G = gov.value!;
   const me = myAddr.value;
+  const v4 = useV4();
+  // The last admin leaving while others remain strands the group: nobody could
+  // invite or promote again. Group/4 refuses it; older contracts allow it.
+  const strands = !!me && g.admins.length === 1 && g.admins[0] === me && g.members.length > 1;
   return (
     <div class="stack">
       <div class="card">
@@ -515,7 +533,13 @@ function About({ g }: { g: Group }) {
           <div><b>Stored in:</b> <span class="mono">{G.c.group}</span></div>
         </div>
       </div>
-      {isMemberOf(g, me) && <div><button class="danger" onClick={() => act(`Leaving ${g.name}`, (t) => G.leave(g.id, t), { risk: "irreversible", key: `leave:${g.id}`, confirm: `Leave ${g.name}? Your standing delegation in this group is dropped too.` }).then((r) => r !== undefined && go("/groups"))}>Leave group</button></div>}
+      {isMemberOf(g, me) && (strands && v4
+        ? <div class="stack" style={{ gap: ".3rem" }}><div><button class="danger" disabled>Leave group</button></div>
+            <p class="small muted">You're the only admin. Make someone else an admin first (<a href={href("g", g.id, "members")}>Members & trust</a>); the group's contract refuses to let its last admin leave while others remain, because nobody could invite or promote afterwards.</p></div>
+        : <div><button class="danger" onClick={() => act(`Leaving ${g.name}`, (t) => G.leave(g.id, t), { risk: "irreversible", key: `leave:${g.id}`,
+            confirm: strands
+              ? `You're the only admin of ${g.name}. If you leave, nobody can invite or promote anyone in it again. Make someone else an admin first (Members & trust). Leave anyway?`
+              : `Leave ${g.name}? Your standing delegation in this group is dropped too.` }).then((r) => r !== undefined && go("/groups"))}>Leave group</button></div>)}
       <p class="small"><a href={href("g", g.id, "members")}>Members and trust →</a></p>
     </div>
   );

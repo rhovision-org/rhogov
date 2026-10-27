@@ -8,7 +8,7 @@ import {
 } from "../chain/council";
 import { Gov, type Group, type Issue, asksId, isMemberOf, isPending, makeId, pendingOf, q, qList, qSet } from "../chain/gov";
 import { displayName, gov, myAddr } from "../state";
-import { ApproveModal, DelegateModal, learnFrom } from "./groups";
+import { ApproveModal, DelegateModal, learnFrom, useV4 } from "./groups";
 import { Addr, Info, Loading, Modal, PersonField, act, go, nameOf, useAsync } from "./kit";
 import { Ballot } from "./votes";
 
@@ -316,6 +316,7 @@ function InviteToChamber({ d, admins, onClose, onInvite }: { d: CouncilData; adm
 }
 
 function Stakeholders({ d }: { d: CouncilData }) {
+  const v4 = useV4();
   const G = gov.value!;
   const me = myAddr.value;
   const [sel, setSel] = useState<string[]>([]);
@@ -357,8 +358,10 @@ function Stakeholders({ d }: { d: CouncilData }) {
               <div class="muted small">{ch.members.length} member{ch.members.length === 1 ? "" : "s"}</div>
               <div class="row" style={{ marginTop: ".6rem" }}>
                 {mine ? <><span class="badge accent">You're a member</span>
-                  <button class="ghost small" onClick={() => {
-                    const soleAdmin = ch.admins.length === 1 && ch.admins[0] === me;
+                  <button class="ghost small" disabled={v4 && ch.admins.length === 1 && ch.admins[0] === me && ch.members.length > 1}
+                    title={v4 && ch.admins.length === 1 && ch.admins[0] === me && ch.members.length > 1 ? "You're the only admin, and others are still in it. Make someone else an admin first (Members & trust): the contract won't let a group's last admin leave." : ""}
+                    onClick={() => {
+                    const soleAdmin = ch.admins.length === 1 && ch.admins[0] === me && ch.members.length > 1;
                     const msg = soleAdmin && ch.policy === "invite"
                       ? `You're the only admin of ${ch.name}, which is invite-only. If you leave, nobody can invite new members. Make someone else an admin first (Members & trust). Leave anyway?`
                       : `Leave ${ch.name}? Your ballots on council decisions will no longer count for this group.`;

@@ -147,6 +147,8 @@ export interface Issue {
   guests: string[];
   ballots: Record<string, string[]>;
   results: Record<string, RhoValue>;
+  /** Every change to the roll, logged by Issue/4 with how many ballots were already in. Empty on older contracts. */
+  rollLog: { seq: number; voters: number; ballotsBefore: number }[];
 }
 
 export interface Standing {
@@ -184,6 +186,7 @@ function humanError(parts: string[]): string {
     "no such group": "That group doesn't exist (yet) on this community's contract.",
     "no such issue": "That issue doesn't exist.",
     "not the opener": "Only the person who opened this issue can do that.",
+    "last admin": "You're this group's only admin, and others are still in it. Make someone else an admin first (Members & trust), then try again.",
     "not on the roll": "This vote isn't open to you. Ask whoever opened it to add you.",
     "not open": "Voting on this issue is closed.",
     closed: "This issue is closed.",
@@ -239,6 +242,7 @@ export function toIssue(id: string, raw: RhoValue): Issue | null {
     guests: keys(i.guests),
     ballots,
     results: asMap(i.results),
+    rollLog: asList(i.rollLog).map((e) => asMap(e)).map((e) => ({ seq: Number(e.seq ?? 0), voters: Number(e.voters ?? 0), ballotsBefore: Number(e.ballotsBefore ?? 0) })),
   };
 }
 
@@ -390,6 +394,21 @@ export class Gov {
     return forDeploy(core.writeProgram(this.c[kind], "self", verb, args));
   }
 
+  private v4?: Promise<boolean>;
+  /**
+   * Whether this community runs the Group/4 and Issue/4 contracts (quantum-os
+   * #247–#250): uninvite, the last-admin guard, the public roll log and an
+   * opener-only propose. A community installed earlier keeps the contracts it
+   * was installed with. `version` is an installer-only verb, so this asks the
+   * one read the new Issue added; both contracts are installed in one deploy,
+   * so the Issue's answer speaks for the Group's.
+   */
+  hasV4Contracts(): Promise<boolean> {
+    return (this.v4 ??= this.node.explore(core.readProgram(this.c.issue, "rollLogOf", [q("")]))
+      .then((v) => v.length > 0 && !(Array.isArray(v[0]) && v[0][0] === "gov-error"))
+      .catch((e) => { this.v4 = undefined; throw e; }));
+  }
+
   // --- groups ----------------------------------------------------------------
 
   /** Does this community's Group contract answer on its node at all? (An absent contract answers nothing.) */
@@ -477,6 +496,8 @@ export class Gov {
   join(gid: string, label: string, t?: (s: string) => void) { return this.write(this.c.group, "join", [q(gid), q(label)], t); }
   leave(gid: string, t?: (s: string) => void) { return this.write(this.c.group, "leave", [q(gid)], t); }
   invite(gid: string, addr: string, t?: (s: string) => void) { return this.write(this.c.group, "invite", [q(gid), q(addr)], t); }
+  /** Withdraw an invitation (admins; Group/4 and later, see hasV4Contracts). */
+  uninvite(gid: string, addr: string, t?: (s: string) => void) { return this.write(this.c.group, "uninvite", [q(gid), q(addr)], t); }
   setRole(gid: string, addr: string, role: "admin" | "member", t?: (s: string) => void) {
     return this.write(this.c.group, "setRole", [q(gid), q(addr), q(role)], t);
   }
