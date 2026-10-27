@@ -1,0 +1,83 @@
+[
+  {
+    "id": "E08",
+    "probe": "client-input-validation",
+    "normalRatingClampsNegative": true,
+    "rawBuilderCanExpressNegative": true,
+    "duplicateAndUnlistedBallotBuilt": true
+  },
+  {
+    "id": "E09",
+    "probe": "council-child-provenance",
+    "acceptedForeignChamber": "council-real.foreign",
+    "admins": [
+      "outsider"
+    ]
+  },
+  {
+    "id": "E10",
+    "probe": "floating-tie",
+    "mathematicalScore": {
+      "X": "3/10",
+      "Y": "3/10"
+    },
+    "actual": {
+      "score": {
+        "X": 0.30000000000000004,
+        "Y": 0.3
+      },
+      "ranked": [
+        "X",
+        "Y"
+      ],
+      "winner": "X",
+      "tie": []
+    }
+  },
+  {
+    "id": "E11",
+    "probe": "empty-native-response",
+    "returned": {
+      "levels": {},
+      "discredited": [],
+      "trustActive": false,
+      "weights": {},
+      "winner": null,
+      "ballots": {},
+      "mode": "approval"
+    },
+    "errorRaised": false
+  },
+  {
+    "id": "E12",
+    "probe": "genesis-read-failure",
+    "chainChecked": true,
+    "knownGenesis": null
+  },
+  {
+    "id": "E13",
+    "probe": "late-inbox-scope",
+    "active": "B",
+    "count": 7,
+    "newCommunitySeenValue": "7"
+  },
+  {
+    "id": "E14",
+    "probe": "list-fanout",
+    "visibleGroups": 10,
+    "issuesPerGroup": 10,
+    "exploreCalls": 121
+  },
+  {
+    "id": "E15",
+    "probe": "malformed-route",
+    "error": "URIError"
+  },
+  {
+    "id": "E16",
+    "probe": "estimate-overflow",
+    "finiteInput": true,
+    "shareA": "NaN",
+    "shareB": "0"
+  }
+]
