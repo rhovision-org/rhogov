@@ -35,7 +35,7 @@ function screenHelp(): { title: string; text: string; link: string } {
     case "g":
       if (tab === "members") return { title: "Members", text: "Who is in the group, how much they're trusted, and who votes for whom. Rate trust, hand your vote to someone, or dispute someone's trust from here. Admins approve requests to join here, each in one step: invite, and say how much they trust the person. On newer communities an admin can also withdraw an invitation nobody has taken up yet.", link: section("6-trust") };
       return { title: "A group", text: "Its votes, members and settings. Open a vote, or vote on one that's open.", link: section("3-groups") };
-    case "v": return { title: "A vote", text: "Choose one or more options (or rank them) and press Vote. You can change your vote while it's open. The node counts it, with trust and delegation.", link: section("4-voting") };
+    case "v": return { title: "A vote", text: "Choose one or more options (or rank them) and press Vote. You can change your vote while it's open. The node counts it, with trust and delegation. People who join the group before anyone votes are added when whoever opened the vote next looks at it; after that, the opener adds them with a press.", link: section("4-voting") };
     case "councils": case "c": return { title: "Councils", text: "Decisions across stakeholder groups: estimate each group's voting power, deliberate with pros and cons, then vote. The facilitator can add a stakeholder group later.", link: section("9-councils-decisions-across-stakeholder-groups") };
     case "inbox": return { title: "Inbox", text: "Messages and invitations. Invitations come from the group's on-chain state and follow your key; collected notes and messages live in this browser. Export archive saves the collected messages to a readable JSON file, without your key. Import it in another browser with the same key and community; existing messages stay and repeated imports add no extra copies. This costs no fee and does not restore messages on chain. Files can be edited, so imported messages are not proof of their sender. Background system notifications are optional: rhogov asks only after you press Enable notifications, then a hidden tab checks about every five minutes.", link: section("8-inbox") };
     case "community": return { title: "Community", text: "The invite link to share, switching communities, and communities kept from a network's earlier chain. This browser remembers which communities you've joined; use a community's invite link to open it on another device. The network address and the three contract addresses are under “Where it lives”, closed by default — you only need them to wire rhogov to a quantum-os room or a node.", link: section("2-communities-and-invitations") };
@@ -117,6 +117,13 @@ async function tipsFor(): Promise<Tip[]> {
     .filter(({ i }) => i.status === "open" && !isAuxIssue(i.id));
   const toVote = issues.filter(({ i }) => (i.voters.includes(me) || i.guests.includes(me)) && !i.ballots[me]);
   if (toVote.length) tips.push({ text: `${toVote.length} open vote${toVote.length > 1 ? "s need" : " needs"} your ballot.`, href: `#/v/${toVote[0].g.id}/${toVote[0].i.id}`, label: "Vote" });
+  // The opener is the only one who can bring a roll up to date (#6); before the first
+  // ballot, opening the vote does it.
+  for (const { i, g } of issues.filter(({ i, g }) => i.by === me && g.members.some((m) => !i.voters.includes(m.addr))).slice(0, 2)) {
+    const n = g.members.filter((m) => !i.voters.includes(m.addr)).length;
+    const unvoted = !Object.keys(i.ballots).length;
+    tips.push({ text: <>{n} {n > 1 ? "people" : "person"} joined {g.name} after you opened “{i.title}”. {unvoted ? "Nobody has voted yet, so opening it adds them." : "Open it to add them to the vote."}</>, href: `#/v/${g.id}/${i.id}`, label: "Open vote" });
+  }
   for (const { i, g } of issues.filter(({ i }) => !i.voters.includes(me) && !i.guests.includes(me)).slice(0, 2))
     tips.push({ text: <>You joined {g.name} after “{i.title}” opened, so it isn't open to you yet. Ask {nameOf(i.by)} to add you to it.</>, href: `#/v/${g.id}/${i.id}`, label: "Open vote" });
   const big = mine.find((g) => g.members.length >= 3 && !g.deleg[me] && !isCouncilId(g.id));

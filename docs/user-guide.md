@@ -196,8 +196,14 @@ options, and choose how people vote:
 
 ![Opening a vote](images/new-vote.png)
 
-Everyone who was a member when the vote opened can vote. You can change your
-vote any time until voting closes. Anyone can **suggest another option** while
+Everyone who was a member when the vote opened can vote. People who join the
+group later are added too, as long as nobody has voted yet: the next time the
+person who opened the vote looks at it, rhogov adds them (only the opener can
+change who may vote, so it happens on their visit). Once voting has begun, the
+opener adds newcomers with **Add N new members to the vote**, because changing
+who may vote mid-vote is shown to everyone on the vote's page. Help reminds the
+opener when people are waiting. You can change your vote any time until voting
+closes. Anyone can **suggest another option** while
 it's open.
 
 **Results.** The **Standing so far** panel shows each option's support and the
