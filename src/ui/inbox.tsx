@@ -1,6 +1,7 @@
 // inbox.tsx — on-chain messages. Sending is public-write; receiving consumes.
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { InboxMessage } from "../chain/gov";
+import { HISTORY_KEEP } from "../chain/rgov-core.js";
+import type { HistoryEntry, HistoryQuery, InboxMessage } from "../chain/gov";
 import {
   active,
   archive,
@@ -431,6 +432,7 @@ export function InboxScreen() {
           ))}
         </div>
       )}
+      <InboxHistory key={`${c.inbox}:${me}`} />
       {groupsRead.error && !waiting.error && (
         <div class="callout warn small" role="status">
           <b>Couldn't read this community's groups.</b> Invitation status may be out of date.{" "}
@@ -802,6 +804,98 @@ export function InboxScreen() {
             </p>
           )}
         </Modal>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The Inbox's own record of what you have collected (#1, Inbox/4): searchable by
+ * sender, type and subject, a page at a time. Every search is a signed deploy by
+ * you (the history is answered only to its owner), so each one costs a fee.
+ */
+function InboxHistory() {
+  const G = gov.value!;
+  const me = myAddr.value!;
+  const c = active.value!;
+  const [open, setOpen] = useState(false);
+  const [from, setFrom] = useState<string | null>(null);
+  const [fromText, setFromText] = useState("");
+  const [type, setType] = useState("");
+  const [title, setTitle] = useState("");
+  const [shown, setShown] = useState<{ query: HistoryQuery; entries: HistoryEntry[]; next: number | null } | null>(null);
+
+  const query = (): HistoryQuery => ({ ...(from ? { from } : {}), ...(type ? { type } : {}), ...(title.trim() ? { title: title.trim() } : {}) });
+  const search = async (more = false) => {
+    const q = more && shown ? shown.query : query();
+    const cursor = more && shown ? shown.next : null;
+    const page = await act(more ? "Reading older messages" : "Searching your message history", (t) => G.history(q, cursor, t), {
+      risk: "routine",
+      key: `history:${c.inbox}:${me}:${JSON.stringify(q)}:${cursor ?? ""}`,
+      receipt: false, // a read: repeating it does no harm
+    });
+    if (page) setShown({ query: q, entries: more && shown ? [...shown.entries, ...page.entries] : page.entries, next: page.next });
+  };
+  const forget = async (e: HistoryEntry) => {
+    const ok = await act("Deleting a message from your history", (t) => G.forgetHistory([e.seq], t), {
+      risk: "irreversible",
+      key: `forgetHistory:${c.inbox}:${me}:${e.seq}`,
+      confirm: "Delete this message from your history on chain? It can't be brought back. A copy this browser collected stays in the list above until you delete that too.",
+      done: "Deleted from your history.",
+    });
+    if (ok !== undefined && shown) setShown({ ...shown, entries: shown.entries.filter((x) => x.seq !== e.seq) });
+  };
+
+  if (!open) return (
+    <div class="section row between">
+      <span class="muted small">Every message you collect is also kept in the community's Inbox, so you can search it from any browser with your key.</span>
+      <button class="ghost" onClick={() => setOpen(true)}>Search history</button>
+    </div>
+  );
+  return (
+    <div class="section card soft stack">
+      <div class="row between">
+        <b>Message history</b>
+        <button class="ghost small" onClick={() => { setOpen(false); setShown(null); }}>Hide</button>
+      </div>
+      <p class="small muted">
+        The Inbox keeps the newest {HISTORY_KEEP} messages you have collected, with their senders, and answers only to your key.
+        Each search is a signed read and costs a small fee. Like messages waiting to be collected, the history is not encrypted.
+      </p>
+      <PersonField label="From" hint="Leave empty for anyone. A name, or their REV address." onChange={setFrom} onText={setFromText} />
+      <div class="row" style={{ gap: ".6rem", flexWrap: "wrap" }}>
+        <label class="field">Kind
+          <select value={type} onChange={(e) => setType((e.target as HTMLSelectElement).value)}>
+            <option value="">Anything</option>
+            <option value="note">Messages</option>
+            <option value="invite">Invitation notes</option>
+          </select>
+        </label>
+        <label class="field" style={{ flex: 1 }}>Subject contains
+          <input value={title} placeholder="Capitals count" onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !(fromText.trim() && !from)) search(); }} />
+        </label>
+      </div>
+      <div class="row"><button class="primary" disabled={!!fromText.trim() && !from} onClick={() => search()}>Search</button></div>
+      {shown && (
+        <div class="stack">
+          {!shown.entries.length && <p class="muted small">Nothing in your history matches.</p>}
+          {shown.entries.map((e) => (
+            <div class="card">
+              <div class="row between small muted">
+                <Addr addr={e.from} />
+                <span>{e.msg.at ? new Date(e.msg.at).toLocaleString() : ""}</span>
+              </div>
+              {e.type === "invite" && <span class="badge warn">Invitation note</span>}
+              {e.title && <h3 style={{ marginTop: ".5rem" }}>{e.title}</h3>}
+              <p style={{ whiteSpace: "pre-wrap", margin: ".3rem 0 0" }}>{e.msg.fields.body}</p>
+              <div class="row" style={{ justifyContent: "flex-end" }}>
+                <button class="ghost small" onClick={() => forget(e)}>Delete from history</button>
+              </div>
+            </div>
+          ))}
+          {shown.next != null && <button class="ghost" onClick={() => search(true)}>Older messages</button>}
+        </div>
       )}
     </div>
   );

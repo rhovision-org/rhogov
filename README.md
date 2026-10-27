@@ -69,7 +69,10 @@ no backend, no relay, no database and no account:
   censure them, their trust drops to 0 and their vouchers are slashed by what they staked.
 - **Inbox.** Anyone can message anyone; the sender is stamped on chain from the key, so it
   can't be forged. Counts are public and contents are not served by the read API.
-  **Collect** consumes the messages into this browser. **Export archive / Import archive**
+  **Collect** consumes the messages into this browser; the Inbox also keeps a history of
+  what you collect (your newest 500, without capabilities), which **Search history** filters
+  by sender, kind and subject, a page at a time, answered only to your key (quantum-os#241).
+  **Export archive / Import archive**
   moves collected messages between browsers with the same key and community, without
   a deploy or fee. Imports keep existing messages and do not add extra copies on repeat.
   rhogov refuses archive files over 20 MiB to bound parsing, but the amount that can

@@ -337,9 +337,19 @@ and send.
   Inbox**. Reconsidering does not itself request permission; the browser prompt can
   still open only after you press **Enable notifications**. If the browser has
   blocked notifications for the site, change that permission in the browser first.
-- **Old messages live in the browser that collected them.** Collecting removes
-  them from the chain, so another browser or device with the same key won't see
-  them, and clearing this browser's site data deletes them.
+- **Collected messages live in the browser that collected them.** Collecting
+  removes them from your inbox on chain, and clearing this browser's site data
+  deletes this browser's copy.
+- **The Inbox also keeps a history of what you collect.** Press **Search history**
+  to look through it from any browser with your key: filter by sender (a name or
+  an address), by kind (messages or invitation notes) and by words in the subject
+  (capitals count), newest first, a page at a time with **Older messages**. The
+  contract answers your history only to your key, so each search is a signed read
+  and costs a small fee. It keeps your newest 500 messages and none of the
+  capabilities a message may have carried. **Delete from history** removes one
+  for good. The history is not encrypted, just like messages waiting to be
+  collected. A community set up before this version of rhogov has no history;
+  the search says so.
 
 **Move collected messages to another browser.** In Inbox, press **Export archive**
 to download a JSON file for your current address and community. It contains
@@ -367,8 +377,8 @@ that cannot pass the current transfer validation, rhogov leaves it untouched and
 tells you to keep that browser data and update rhogov or report the problem.
 
 Export and import are local operations: no signature, deploy or fee, and nothing
-is restored to the chain. They do not provide inbox history or read uncollected
-messages on another device. Files can be edited, so an imported message is not
+is restored to the chain. They do not read uncollected messages on another
+device; for a record on chain, use **Search history**. Files can be edited, so an imported message is not
 proof of who sent it. Clearing this browser's site data still deletes its local
 archive; keep your file separately if you want a backup.
 
