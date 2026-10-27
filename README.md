@@ -192,6 +192,11 @@ them too (`tests/chain-check.ts --node https://playground.rhobot.net`). Behind a
 intercepting proxy, set `RHOGOV_PROXY=1` for the browser tests and
 `NODE_USE_ENV_PROXY=1` for the Node ones.
 
+GitHub Actions runs the browser tests every night (`.github/workflows/e2e.yml`), once
+against a fresh local node built from quantum-os's `bin/rnode` and once against the
+playground. Red on the playground with the local run green means the playground
+changed, not rhogov. **Run workflow** on the e2e workflow starts it by hand.
+
 ## Layout
 
 ```
