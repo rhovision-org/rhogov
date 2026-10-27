@@ -1,5 +1,5 @@
 // votes.tsx — issues: create, cast (approval or ranked), and see the node's weighted result.
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { type Group, type Issue, type Outcome, isMemberOf, makeId, q, readRecord } from "../chain/gov";
 import { gov, myAddr } from "../state";
 import { DelegateModal, learnFrom } from "./groups";
@@ -73,7 +73,7 @@ export function NewIssueModal({ g, onClose }: { g: Group; onClose: () => void })
           <label class={`choice ${mode === "ranked" ? "on" : ""}`}><input type="radio" checked={mode === "ranked"} onChange={() => setMode("ranked")} />
             <div><b>Ranked choice</b><div class="muted small">Put options in order of preference. Instant-runoff picks the winner.</div></div></label>
         </div>
-        <p class="muted small">All {g.members.length} current members can vote. Anyone can suggest more options while voting is open.</p>
+        <p class="muted small">All {g.members.length} current members can vote, and so can anyone who joins before the first ballot: they're added when you next look at the vote. Anyone can suggest more options while voting is open.</p>
       </div>
     </Modal>
   );
@@ -97,6 +97,9 @@ export function IssueScreen({ gid, iid }: { gid: string; iid: string }) {
   );
 }
 
+/** Roll top-ups this tab has already sent, by issue and newcomers, so a failed one isn't retried on every refresh. */
+const toppedUp = new Set<string>();
+
 function IssueView({ i, g, out }: { i: Issue; g: Group; out: Outcome }) {
   const G = gov.value!;
   const me = myAddr.value;
@@ -106,6 +109,21 @@ function IssueView({ i, g, out }: { i: Issue; g: Group; out: Outcome }) {
   const lateRoll = i.rollLog.filter((e) => e.ballotsBefore > 0);
   const member = isMemberOf(g, me);
   const missing = g.members.map((m) => m.addr).filter((a) => !i.voters.includes(a));
+  const unvoted = Object.keys(i.ballots).length === 0;
+  // The roll follows the group until the first ballot (#6). Only the opener can set it
+  // (Issue contract), so their visit is when it catches up. Once anyone has voted, a
+  // change shows publicly as "changed after voting began", so it waits for a press.
+  const topUp = isOpener && i.status === "open" && unvoted && missing.length > 0 ? `${i.id}:${missing.join(",")}` : "";
+  useEffect(() => {
+    if (!topUp || toppedUp.has(topUp)) return;
+    toppedUp.add(topUp);
+    const n = missing.length, who = n === 1 ? nameOf(missing[0]) : `${n} new members`;
+    act(`Adding ${who} to the vote`, (t) => G.setRoll(i.id, [...new Set([...i.voters, ...missing])], t), {
+      risk: "consequential",
+      key: `setRoll:${i.id}`,
+      done: `${who} joined ${g.name} before anyone voted, so they can vote now.`,
+    });
+  }, [topUp]);
   const [delegating, setDelegating] = useState(false);
   const [adding, setAdding] = useState("");
   const topicDelegate = me ? g.topic[i.id]?.[me] : undefined;
@@ -169,7 +187,9 @@ function IssueView({ i, g, out }: { i: Issue; g: Group; out: Outcome }) {
             : !me ? <p class="muted">Set up your identity to vote.</p>
             : !onRoll ? (
               <div class="callout warn small">
-                {member ? <>You joined {g.name} after this vote opened, so it isn't open to you yet. {nameOf(i.by)} can add you to it.</>
+                {member ? (unvoted
+                  ? <>You joined {g.name} after this vote opened. Nobody has voted yet, so you'll be added the next time {nameOf(i.by)}, who opened it, looks at it.</>
+                  : <>You joined {g.name} after this vote opened, so it isn't open to you yet. {nameOf(i.by)} can add you to it.</>)
                   : <>Only members of {g.name} can vote. <a href={`#/g/${encodeURIComponent(g.id)}`}>Join the group</a> first.</>}
               </div>
             ) : <Ballot i={i} />}
