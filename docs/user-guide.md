@@ -109,6 +109,14 @@ community of yours already uses, the invite page says so prominently: everything
 you do in that community would be signed and sent there. You have to tick "I
 recognise this network…" before going on. Only do so if you trust whoever sent it.
 
+**An old invite link.** rhogov moved from `rchain-community.github.io` to
+`rhovision-org.github.io` when its GitHub organization was renamed. An invite
+that starts with the old address no longer opens by itself. The community it
+names is still there: open [rhogov](https://rhovision-org.github.io/rhogov), choose
+**Join with an invite link**, and paste the whole old link into the box. Or ask for a
+fresh link from **Community**. A key you saved in the browser at the old address
+doesn't carry over, so bring it back with **I have a key** and your keystore file.
+
 ![The invite link](images/invite.png)
 
 You can belong to several communities; switch between them on the **Community**

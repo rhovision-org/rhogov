@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Moved to rhovision-org</title>
+<meta name="robots" content="noindex">
+<script>
+  // The org was renamed rchain-community -> rhovision-org, and GitHub Pages does
+  // not follow a rename. Send every old link to the same path on the new origin.
+  // The hash (#/join?c=… for rhogov, #room=cap:… for quantum-os) is read here in
+  // the browser and never reaches a server, so an invite or room cap stays private.
+  location.replace("https://rhovision-org.github.io" + location.pathname + location.search + location.hash);
+</script>
+<p>This page moved to <a id="to" href="https://rhovision-org.github.io/">rhovision-org.github.io</a>.</p>
+<script>
+  document.getElementById("to").href = "https://rhovision-org.github.io" + location.pathname + location.search + location.hash;
+</script>
