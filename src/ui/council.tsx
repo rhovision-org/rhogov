@@ -7,9 +7,9 @@ import {
   approvals,
 } from "../chain/council";
 import { Gov, type Group, type Issue, asksId, isMemberOf, isPending, makeId, pendingOf, q, qList, qSet } from "../chain/gov";
-import { displayName, gov, myAddr } from "../state";
+import { displayName, gov, learnListed, myAddr } from "../state";
 import { ApproveModal, DelegateModal, learnFrom, useV4 } from "./groups";
-import { Addr, Info, Loading, Modal, PersonField, act, go, nameOf, useAsync } from "./kit";
+import { Addr, Info, Loading, Modal, PersonField, act, go, nameOf, useAsync, usePeopleFilter } from "./kit";
 import { Ballot } from "./votes";
 
 const cHref = (cid: string, ...rest: string[]) => `/c/${[cid, ...rest].map(encodeURIComponent).join("/")}`;
@@ -293,17 +293,49 @@ function JoinApproved({ d, chambers }: { d: CouncilData; chambers: Group[] }) {
   );
 }
 
-/** Bring someone new in: pick the person (by name or address) and the stakeholder group. */
+/**
+ * Bring someone new in: pick the person and the stakeholder group (#90). People
+ * this community already knows but the council doesn't (on its name list, or in
+ * another of its groups) are offered as a list; anyone else is typed by name or address.
+ */
 function InviteToChamber({ d, admins, onClose, onInvite }: { d: CouncilData; admins: Group[]; onClose: () => void; onInvite: (ch: Group, p: string) => Promise<void> }) {
-  const [who, setWho] = useState<string | null>(null);
+  const G = gov.value!;
+  const me = myAddr.value;
+  const [picked, setPicked] = useState<string | null>(null);
+  const [typed, setTyped] = useState<string | null>(null);
+  const who = picked ?? typed;
   const [gid, setGid] = useState(admins[0]?.id ?? d.chambers[0]?.id ?? "");
   const ch = d.chambers.find((c) => c.id === gid);
   const allowed = !!ch && (ch.policy === "open" || admins.some((a) => a.id === ch.id));
+  const inCouncil = (a: string) => isMemberOf(d.group, a) || d.chambers.some((c) => isMemberOf(c, a));
+  const known = useAsync(async () => {
+    const [gs, listed] = await Promise.all([G.groups().catch(() => [] as Group[]), G.names().catch(() => ({} as Record<string, string>))]);
+    learnListed(listed, true);
+    return [...new Set([...Object.keys(listed), ...gs.flatMap((g) => g.members.map((m) => m.addr))])];
+  }, [G.c.group]);
+  const newcomers = (known.data ?? []).filter((a) => a !== me && !inCouncil(a))
+    .sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  const find = usePeopleFilter(newcomers, "Find someone new by name…");
   return (
     <Modal title={`Invite someone into ${d.group.name}`} onClose={onClose}
       actions={<><button onClick={onClose}>Cancel</button><button class="primary" disabled={!who || !allowed} onClick={() => { onClose(); onInvite(ch!, who!); }}>Invite</button></>}>
       <div class="stack">
-        <PersonField label="Who" onChange={setWho} />
+        {newcomers.length > 0 && (
+          <div class="field"><b>New to {d.group.name}</b>
+            <span class="hint">In this community, but not in the council or any of its stakeholder groups yet.</span>
+            {newcomers.length > 5 && find.box}
+            <div class="stack" style={{ maxHeight: "14rem", overflowY: "auto" }}>
+              {find.matches.map((a) => (
+                <label class={`choice ${picked === a ? "on" : ""}`}>
+                  <input type="radio" name="newcomer" checked={picked === a} onChange={() => setPicked(a)} />
+                  <div class="row grow between"><Addr addr={a} />{ch?.invited.includes(a) && <span class="badge">invited</span>}</div>
+                </label>
+              ))}
+              {find.q && !find.matches.length && <div class="muted small">No one new has a name starting with “{find.q.trim()}”.</div>}
+            </div>
+          </div>
+        )}
+        <PersonField label={newcomers.length ? "Or someone else" : "Who"} onChange={(a) => { setTyped(a); if (a) setPicked(null); }} />
         <label class="field">Stakeholder group
           <select value={gid} onChange={(e) => setGid((e.target as HTMLSelectElement).value)}>{d.chambers.map((c) => <option value={c.id}>{c.name}{c.policy === "invite" ? " (invite only)" : ""}</option>)}</select>
         </label>

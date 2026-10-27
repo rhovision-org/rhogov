@@ -466,6 +466,11 @@ everyone waiting to the votes at once, when that's what you want.
 
 **Invite someone to a stakeholder group** on the same card brings in someone
 new: they get a message with a link, and show as waiting once they've joined.
+People this community already knows but the council doesn't (their name is on
+the community's list, or they're in one of its other groups) are listed at the
+top, so you can pick them rather than type; anyone else you type by name or
+paste their address. Someone already invited to the stakeholder group you chose
+is marked **invited**.
 
 ## 10. Your account and your key
 
