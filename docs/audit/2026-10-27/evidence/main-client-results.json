@@ -1,0 +1,73 @@
+[
+  {
+    "probe": "receipt-after-network-error",
+    "savedBeforeTransport": true,
+    "pending": null,
+    "evidence": "Signature was saved before fetch; NodeError cleared it in act catch."
+  },
+  {
+    "probe": "review-routine",
+    "reviewEnabled": true,
+    "permitted": true,
+    "modal": null
+  },
+  {
+    "probe": "council-failed-read",
+    "full": {
+      "score": {
+        "X": 0.4,
+        "Y": 0.6
+      },
+      "ranked": [
+        "Y",
+        "X"
+      ],
+      "winner": "Y",
+      "tie": []
+    },
+    "missingB": {
+      "score": {
+        "X": 0.4,
+        "Y": 0
+      },
+      "ranked": [
+        "X",
+        "Y"
+      ],
+      "winner": "X",
+      "tie": []
+    }
+  },
+  {
+    "probe": "issues-partial",
+    "returned": [
+      {
+        "id": "readable"
+      }
+    ],
+    "returnedError": false
+  },
+  {
+    "probe": "archive-quota",
+    "exceptionReported": false,
+    "persistedMessages": 0
+  },
+  {
+    "probe": "cold-tip-fanout",
+    "reads": 20,
+    "tipRequests": 20,
+    "exploreRequests": 20
+  },
+  {
+    "probe": "community-scope-collision",
+    "communities": [
+      {
+        "name": "second",
+        "node": "https://second-audit.invalid",
+        "inbox": "rho:id:inbox",
+        "group": "rho:id:group",
+        "issue": "rho:id:issue"
+      }
+    ]
+  }
+]
