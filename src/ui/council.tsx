@@ -11,6 +11,7 @@ import { displayName, gov, learnListed, myAddr } from "../state";
 import { ApproveModal, DelegateModal, learnFrom, useV4 } from "./groups";
 import { Addr, Info, Loading, Modal, PersonField, act, go, nameOf, useAsync, usePeopleFilter } from "./kit";
 import { Ballot } from "./votes";
+import { Markdown } from "./markdown";
 
 const cHref = (cid: string, ...rest: string[]) => `/c/${[cid, ...rest].map(encodeURIComponent).join("/")}`;
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -595,7 +596,7 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
         </div>
       )}
 
-      {args?.title && args.title !== i.title && <div class="card soft section" style={{ whiteSpace: "pre-wrap" }}><b>Background</b><div>{args.title}</div></div>}
+      {args?.title && args.title !== i.title && <div class="card soft section"><b>Background</b><Markdown text={args.title} /></div>}
 
       {rec.phase === "decided" && <RecordView i={i} rec={rec} args={args} />}
 

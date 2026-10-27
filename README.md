@@ -128,6 +128,7 @@ any rgov-core client can read them:
 | council | Group `council-<slug>` |
 | stakeholder group | Group `<councilId>.<slug>` |
 | voting-power estimates | Issue `<councilId>.weights` (mode `estimate`; a ballot is `["<groupId>=<percent>", …]`; its title is the council's purpose) |
+| a vote's description | Issue `<voteId>.about` (mode `about`, empty roll; its title is the text, in a small Markdown subset; shown only when its opener is the vote's opener) |
 | decision | Issue in the council (mode `approval`) |
 | pros and cons | Issue `<decisionId>.args` (options are `pro\|<option>\|<text>`; ballots are endorsements; its title is the background) |
 | phase and decision of record | the facilitator's entry in the decision's `results` |
