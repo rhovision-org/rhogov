@@ -493,7 +493,7 @@ export function Info({ title = "How does this work?", children }: { title?: stri
 
 // --- choosing a person -------------------------------------------------------------
 
-export function PersonField({ label, hint, initial = "", onChange }: { label: string; hint?: string; initial?: string; onChange: (addr: string | null) => void }) {
+export function PersonField({ label, hint, initial = "", onChange, onText }: { label: string; hint?: string; initial?: string; onChange: (addr: string | null) => void; onText?: (text: string) => void }) {
   const G = gov.value!;
   const [text, setText] = useState(initial ? (addressBook.value[initial] ?? initial) : "");
   const [picking, setPicking] = useState(false);
@@ -525,6 +525,7 @@ export function PersonField({ label, hint, initial = "", onChange }: { label: st
   }
   const r = resolvePerson(text, names);
   useEffect(() => { onChange(r.ok ? r.addr : null); }, [r.ok ? r.addr : null]);
+  useEffect(() => { onText?.(text); }, [text]);
   // Names start with a letter, addresses with a digit: so while it reads as a
   // name, offer the names that start with what's typed so far.
   const choices = suggestNames(text, Object.entries(names).filter(([a]) => a !== myAddr.value).map(([, n]) => n));
