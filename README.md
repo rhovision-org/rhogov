@@ -1,4 +1,4 @@
-# rhogov
+<h1><img src="src/assets/rhogov-logo.svg" alt="rhogov" width="320"></h1>
 
 **[User guide →](docs/user-guide.md)** · **[Open the app →](https://rhovision-org.github.io/rhogov/)**
 
