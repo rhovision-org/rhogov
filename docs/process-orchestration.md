@@ -2,7 +2,9 @@
 
 **Status: partly built, on trial.** Trust gates are live
 ([`src/chain/gates.ts`](../src/chain/gates.ts)): a council decision's phases now move on by
-themselves. The rest of this page is a design for review by the project's maintainers. The
+themselves. Loading a council definition (load, check, create, create later, export) is built
+([`src/chain/definition.ts`](../src/chain/definition.ts)), without power rules, templates or
+rules of change yet. The rest of this page is a design for review by the project's maintainers. The
 only decision it asks for now is how a council decides, including how it changes the way it
 decides. Everything else waits until a council actually needs it.
 
@@ -83,6 +85,23 @@ rhogov then:
 
 Changing the definition later is just another decision under the template its rules of change
 name. How we decide is settled once, and then changes only by its own rule.
+
+**Built so far** ([`src/chain/definition.ts`](../src/chain/definition.ts); Councils →
+**Load a template…**): councils and chambers with a `parent` and a `later` flag, checked before
+signing, created in two deploys (one for all the groups, one for the voting-power estimates
+and the `.definition` records), councils marked `later` created from their parent's page, and
+**Export as a template** on any council. The built-in rholo template is a starting point. Power
+rules, process templates and rules of change are not in the format yet. The format today:
+
+```json
+{"kind": "rhogov-council-definition", "version": 1, "name": "rholo governance",
+ "councils": [
+  {"slug": "rholo-network", "name": "rholo Network Council", "purpose": "…",
+   "chambers": [{"slug": "validators", "name": "Validators", "policy": "invite"},
+                {"slug": "users", "name": "Users", "policy": "open"}]},
+  {"slug": "rholo-treasury", "name": "Treasury", "parent": "rholo-network", "later": true,
+   "purpose": "…", "chambers": [ … ]}]}
+```
 
 ## Councils for rholo governance
 
@@ -166,15 +185,16 @@ start). A template states its gates as data:
 | --- | --- |
 | A process template | Issue `<councilId>.process.<slug>`, mode `process`, empty roll; its title holds the template |
 | A decision's template | The facilitator's `results` entry gains `"process": "<slug>@<version>"` |
-| A council definition | Issue `<councilId>.definition`, holding the definition's hash |
+| A council definition | Issue `<councilId>.definition`, mode `definition`: URI-encoded JSON `{parent, source, def?}`; the first council created holds the whole file (built) |
 | A link to what follows | Action items become `{"text", "next"}`, where `next` names the issue opened for it |
 
 ## Next steps
 
 1. The maintainers agree the founding rule: how a council decides, and how it changes that.
-2. Specify the council-definition format and its validation, with unit tests beside `council.ts`.
-3. Build load, check and create in rhogov, refactoring `PHASES` into the Decide template.
-4. Add export, so a running council can be reused.
+2. Add power rules, process templates and rules of change to the definition format, refactoring
+   `PHASES` and `DECIDE_GATES` into the Decide template.
+3. Seats from anywhere: let a council seat a group from elsewhere in the tree as a chamber.
+4. Latch gate advances on chain and add gates that use time.
 
 ## Sources
 
