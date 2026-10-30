@@ -16,6 +16,18 @@ design: a process orchestration framework. It keeps the principles in
 the three [rgov-core](https://github.com/rhovision-org/quantum-os/blob/main/RGov_Core.md)
 contracts.
 
+**Related reading:**
+
+- **[User guide](user-guide.md)**: how people use rhogov today, especially
+  [section 9, Councils](user-guide.md#9-councils-decisions-across-stakeholder-groups), which
+  walks through a decision and its gates.
+- **Decision support:** the instruments a phase can use come from the group-decision
+  processes mapped in quantum-os
+  [`Group_Decisions.md`](https://github.com/rhovision-org/quantum-os/blob/main/Group_Decisions.md)
+  (approval, ranked choice, median estimate, delegation, consent, and others), and from the
+  [decision-support references](https://github.com/rhovision-org/rholo/blob/dev/docs/src/qucalc/references.md#decision-support)
+  behind rholo's governance design.
+
 ## What councils are today
 
 A council is already built from parts, but the parts are fixed in code
@@ -179,7 +191,11 @@ start). A template states its gates as data:
 
 - [README: Multi-stakeholder councils](../README.md#multi-stakeholder-councils) and
   [Known limits](../README.md#known-limits)
-- [User guide, section 9: Councils](user-guide.md#9-councils-decisions-across-stakeholder-groups)
+- [User guide](user-guide.md), especially
+  [section 9: Councils](user-guide.md#9-councils-decisions-across-stakeholder-groups)
+- Decision support: quantum-os
+  [`Group_Decisions.md`](https://github.com/rhovision-org/quantum-os/blob/main/Group_Decisions.md)
+  and rholo's [decision-support references](https://github.com/rhovision-org/rholo/blob/dev/docs/src/qucalc/references.md#decision-support)
 - [CLAUDE.md](../CLAUDE.md)
 - [`src/chain/council.ts`](../src/chain/council.ts), [`src/chain/gates.ts`](../src/chain/gates.ts),
   [`src/ui/council.tsx`](../src/ui/council.tsx)
