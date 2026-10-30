@@ -6,7 +6,7 @@
 // consumes them on chain, so this browser is where they live afterwards), and a
 // last-known membership cache for first paint and an unreachable node.
 
-import { signal, computed, effect } from "@preact/signals";
+import { batch, signal, computed, effect } from "@preact/signals";
 import {
   Gov, membershipStatus, type Community, type Group, type InboxMessage, type MembershipStatus,
 } from "./chain/gov";
@@ -15,6 +15,7 @@ import { isValidKey, revAddressOf } from "./chain/keys";
 import { RNode } from "./chain/node";
 import { nameSkeleton } from "./chain/people";
 import { resolveNames } from "./chain/profile";
+import { getItem, notKept, removeItem, setItem } from "./storage";
 
 const LS = {
   key: "rhogov:key",
@@ -32,9 +33,10 @@ const LS = {
 };
 
 const load = <T,>(k: string, d: T): T => {
-  try { const v = localStorage.getItem(k); return v === null ? d : (JSON.parse(v) as T); } catch { return d; }
+  try { const v = getItem(k); return v === null ? d : (JSON.parse(v) as T); } catch { return d; }
 };
-const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage refused */ } };
+// A full localStorage falls back to IndexedDB (storage.ts), so a reload still finds it.
+const save = (k: string, v: unknown) => { setItem(k, JSON.stringify(v)); };
 
 /** r-wallet: the RChain web wallet, whose faucet funds testnet addresses. */
 export const R_WALLET = "https://rhowallet.org";
@@ -56,8 +58,8 @@ export const NETWORKS = [
 export const nodeBase = (u: string) => u.trim().replace(/\/+$/, "");
 
 /** The network the welcome steps are set to, before (or besides) any community. */
-export const setupNode = signal<string>((() => { try { return localStorage.getItem(LS.setupNode) ?? NETWORKS[0].url; } catch { return NETWORKS[0].url; } })());
-export const setSetupNode = (u: string) => { setupNode.value = u; try { localStorage.setItem(LS.setupNode, u); } catch { /* storage refused */ } };
+export const setupNode = signal<string>(getItem(LS.setupNode) ?? NETWORKS[0].url);
+export const setSetupNode = (u: string) => { setupNode.value = u; setItem(LS.setupNode, u); };
 
 /** The genesis each node served when this browser last accepted it: node → hash. */
 export const knownGenesis = signal<Record<string, string>>(load(LS.genesis, {}));
@@ -185,7 +187,7 @@ export function setKey(k: string | null, name?: string, opts: { here?: boolean }
     if (!k) { setName(chain, null); return; }
   } else {
     mainKey.value = k;
-    if (k) save(LS.key, k); else try { localStorage.removeItem(LS.key); } catch { /* storage refused */ }
+    if (k) save(LS.key, k); else removeItem(LS.key);
     // Names given to the old main key on chains that use it are not the new key's.
     if (changed) {
       chainNames.value = Object.fromEntries(Object.entries(chainNames.value).filter(([c]) => !!chainKeys.value[c]));
@@ -437,7 +439,7 @@ export function setArchive(addr: string, c: Community, msgs: InboxMessage[]) { s
 /** Transfers must not mistake unreadable/corrupt storage for an empty archive. */
 export function archiveForTransfer(addr: string, c: Community): InboxMessage[] {
   let text: string | null;
-  try { text = localStorage.getItem(LS.inbox(addr, communityKey(c))); }
+  try { text = getItem(LS.inbox(addr, communityKey(c))); }
   catch { throw new Error("This browser could not read its archive. Check its storage settings; existing messages were left untouched."); }
   if (text === null) return [];
   let msgs: unknown;
@@ -450,7 +452,9 @@ export function archiveForTransfer(addr: string, c: Community): InboxMessage[] {
 
 /** An import must report a refused storage write rather than claim success. */
 export function importArchive(addr: string, c: Community, msgs: InboxMessage[]) {
-  localStorage.setItem(LS.inbox(addr, communityKey(c)), JSON.stringify(msgs));
+  if (!setItem(LS.inbox(addr, communityKey(c)), JSON.stringify(msgs)) && notKept.value) {
+    throw new Error("This browser refused to store the messages: its storage is full or switched off. Nothing was imported.");
+  }
 }
 
 // --- membership --------------------------------------------------------------
@@ -609,4 +613,24 @@ export const refresh = (force = false) => {
 if (typeof window !== "undefined") {
   setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 15_000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
+}
+
+/**
+ * Read the stored state again, once the IndexedDB backup (storage.ts) is open.
+ * This module loads before it is, so whatever localStorage refused, and the
+ * backup holds, is picked up here, before the app is first drawn.
+ */
+export function reloadFromStorage() {
+  batch(() => {
+    setupNode.value = getItem(LS.setupNode) ?? NETWORKS[0].url;
+    knownGenesis.value = load(LS.genesis, {});
+    mainKey.value = load<string | null>(LS.key, null);
+    mainName.value = load(LS.name, "");
+    chainKeys.value = load(LS.chainKeys, {});
+    chainNames.value = load(LS.chainNames, {});
+    communities.value = load<Community[]>(LS.communities, []);
+    activeId.value = load<string | null>(LS.active, null);
+    reviewBeforeSign.value = load(LS.reviewBeforeSign, false);
+    dismissed.value = load(LS.dismissed, []);
+  });
 }

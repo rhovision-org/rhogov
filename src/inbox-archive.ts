@@ -35,6 +35,13 @@ export function parseInboxArchive(
     throw invalid();
   }
 
+  // A keystore is the other JSON file rhogov writes, and the easy one to pick here.
+  if (object(v) && (object(v.crypto) || object(v.Crypto))) {
+    throw new Error(
+      "This is a keystore file (your key), not an inbox archive. Nothing was imported. To use the key, open Account, choose Remove from this browser, then on the welcome screen choose I have a key and give it this file.",
+    );
+  }
+
   if (
     !object(v) ||
     v.format !== "rhogov-inbox" ||
