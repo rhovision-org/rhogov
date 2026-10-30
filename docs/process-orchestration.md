@@ -1,4 +1,4 @@
-# RhoGov process orchestration: councils
+# [RhoGov](https://rhovision-org.github.io/rhogov/#/) process orchestration: councils
 
 **Status: partly built, on trial.** Trust gates are live
 ([`src/chain/gates.ts`](../src/chain/gates.ts)): a council decision's phases now move on by
