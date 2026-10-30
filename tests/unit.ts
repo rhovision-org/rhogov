@@ -1,6 +1,7 @@
 // unit.ts — offline checks (no node): decoding, keys, council arithmetic.
 import { ARCHIVE_MAX_BYTES, exportInboxArchive, mergeInboxArchive, parseInboxArchive } from "../src/inbox-archive";
 import { approvalShare, approvals, asking, chamberPower, combine, decodeArg, encodeArg, estimateBallot, parseEstimate } from "../src/chain/council";
+import { checkGate, phaseOf } from "../src/chain/gates";
 import { Gov, type Group, type GroupsRead, type InboxMessage, membershipStatus, pendingOf, readRecord, ReviewDeclined, toGroup } from "../src/chain/gov";
 import {
   active, addCommunity, addressBook, archived, archiveForTransfer, chainIdOf, chainReset, displayName, earlier, fromEarlierChain,
@@ -87,6 +88,33 @@ const t = combine(["x", "y"], [{ chamber: { id: "A" }, share: { x: 0.5, y: 0.5 }
 ok("a tie names no winner", t.winner === null && eq(t.tie.sort(), ["x", "y"]), t);
 ok("vote counts: one per person per option, unknown options ignored",
   eq(approvals(["x", "y", "z"], { a: ["x", "y"], b: ["x", "x"], c: ["w"] }), { x: 2, y: 1, z: 0 }));
+
+// Gates (councils): a phase moves on by itself when its gates hold, from public data alone.
+{
+  const pw = { share: { A: 0.6, B: 0.4 }, median: {}, estimators: 0, coveredBy: {} };
+  const dec = { options: ["x", "y"], status: "open", ballots: {} } as any;
+  const board = (points: string[], ballots: Record<string, string[]>) => ({ options: points, ballots }) as any;
+  const res = (a: Record<string, number>, b: Record<string, number> | null) => [
+    { chamber: { id: "A", name: "Users" }, share: a, ballots: 2 },
+    { chamber: { id: "B", name: "Validators" }, share: b ?? {}, ballots: b ? 1 : 0 },
+  ] as any;
+  const two = [encodeArg("pro", "x", "fast"), encodeArg("con", "x", "risky")];
+  const quiet = { decision: dec, args: board([], {}), results: res({}, null), power: pw };
+  ok("gate: no points, deliberation stays", phaseOf("deliberate", false, quiet).phase === "deliberate");
+  ok("gate: says what it waits for", checkGate({ kind: "points", min: 2 }, quiet).says === "0 of 2 points for or against");
+  const debated = { ...quiet, args: board(two, { p: [two[0]], r: [two[1]] }) };
+  ok("gate: two points and two endorsers open voting", eq(phaseOf("deliberate", false, debated), { ...phaseOf("deliberate", false, debated), phase: "vote", auto: true }));
+  ok("gate: one endorser is not enough", phaseOf("deliberate", false, { ...debated, args: board(two, { p: two }) }).phase === "deliberate");
+  ok("gate: a silent group blocks the decision", phaseOf("vote", false, { ...debated, results: res({ x: 1 }, null) }).waiting.some((w) => !w.met && w.says === "not yet voted: Validators"));
+  // x: 0.6×0.9 + 0.4×0.5 = 0.74 ≥ 2/3 → decided by the gate; y: 0.6×0.1 + 0.4×0.5 = 0.26
+  const strong = { ...debated, results: res({ x: 0.9, y: 0.1 }, { x: 0.5, y: 0.5 }) };
+  ok("gate: strong trust-weighted support decides", phaseOf("vote", false, strong).phase === "decided");
+  ok("gate: from deliberation straight through when everything holds", eq([phaseOf("deliberate", false, strong).phase, phaseOf("deliberate", false, strong).auto], ["decided", true]));
+  // x: 0.6×0.6 + 0.4×0.5 = 0.56 < 2/3
+  ok("gate: weaker support keeps voting open", phaseOf("vote", false, { ...debated, results: res({ x: 0.6, y: 0.4 }, { x: 0.5, y: 0.5 }) }).phase === "vote");
+  ok("gate: a facilitator's hold stops it", phaseOf("deliberate", true, strong).phase === "deliberate");
+  ok("gate: a closed decision does not move", phaseOf("vote", false, { ...strong, decision: { ...dec, status: "closed" } }).phase === "vote");
+}
 
 // Choosing a person by name or address.
 {

@@ -1,4 +1,4 @@
-<h1><img src="src/assets/rhogov-logo.svg" alt="rhogov" width="320"></h1>
+# rhogov
 
 **[User guide →](docs/user-guide.md)** · **[Open the app →](https://rhovision-org.github.io/rhogov/)**
 
@@ -133,6 +133,8 @@ any rgov-core client can read them:
 | pros and cons | Issue `<decisionId>.args` (options are `pro\|<option>\|<text>`; ballots are endorsements; its title is the background) |
 | phase and decision of record | the facilitator's entry in the decision's `results` |
 | request to join a group | membership of the open, hidden Group `~asks:<groupId>` (the asker joins it by their own key; pending = on it, not a member, not invited) |
+
+Where councils are going: [RhoGov process orchestration](docs/process-orchestration.md).
 
 ## Interop with quantum-os
 
