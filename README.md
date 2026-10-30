@@ -115,6 +115,11 @@ design:
   *Deliberate* (pros and cons per option, with endorsements, ConsiderIt-style) →
   *Decide* (approval vote) → *Record & follow up* (outcome, rationale, action items, and the
   dissent against the outcome).
+- **Phases that move by themselves.** A phase moves on when its **gates** hold, without
+  waiting for the facilitator: voting opens once the board has at least two points and
+  two people endorsing them, and the decision is ready to record once every stakeholder
+  group has voted and one option has at least two-thirds of the trust-weighted score.
+  Every browser checks the gates against the same public data (`src/chain/gates.ts`).
 - **Stakeholder-weighted tally.** Within each group, the node weighs that group's members'
   ballots with that group's trust and delegation and names the group's choice
   (`rho:gov:*`). Across groups, the score is Σ voting power × the group's weighted approval
@@ -220,8 +225,11 @@ tests/       chain-check.ts (live API)   unit.ts   e2e/ (Playwright)
 - **A group's creator is labelled with the group's name** by the Group contract. rhogov
   shows dictionary names instead, which is why your name is published once on first use.
 - **Ballots are public.** That's on purpose: it's what makes the tally verifiable.
-- **The phase of a council decision is advisory.** The facilitator records it, and the Issue
-  contract itself only knows open, locked and closed.
+- **The phase of a council decision is advisory.** The facilitator records it, and gates
+  move it forward in every browser, but the Issue contract itself only knows open, locked
+  and closed and lets only the opener propose a result (quantum-os#245). So a gate's
+  advance is not written anywhere: it holds while its conditions do, and the facilitator's
+  record is what closes a decision.
 - **Reads use the newest block**, not the last finalized one, so you see your own vote
   immediately; on a multi-validator net a very recent block can still be orphaned.
 - **The list of communities you use is browser-local.** A community is a set of contract

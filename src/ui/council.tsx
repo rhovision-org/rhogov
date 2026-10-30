@@ -6,6 +6,7 @@ import {
   chamberId, chamberPower, combine, councilsOf, decodeArg, encodeArg, estimateBallot, isAuxIssue, parseEstimate, weightsIssueId,
   approvals,
 } from "../chain/council";
+import { phaseOf } from "../chain/gates";
 import { Gov, type Group, type Issue, asksId, isMemberOf, isPending, makeId, pendingOf, q, qList, qSet } from "../chain/gov";
 import { displayName, gov, learnListed, myAddr } from "../state";
 import { ApproveModal, DelegateModal, learnFrom, useV4 } from "./groups";
@@ -42,11 +43,11 @@ async function loadCouncil(cid: string): Promise<CouncilData | null> {
 }
 
 /** The facilitator's record on a decision: phase, and at the end the decision of record. */
-function recordOf(i: Issue): { phase: PhaseId; rationale?: string; actions?: string[]; winner?: string | null; scores?: Record<string, number> } {
+function recordOf(i: Issue): { phase: PhaseId; hold: boolean; rationale?: string; actions?: string[]; winner?: string | null; scores?: Record<string, number> } {
   const r = i.results[i.by];
   const m = r && typeof r === "object" && !Array.isArray(r) ? (r as Record<string, any>) : {};
   const phase = (PHASES.some((p) => p.id === m.phase) ? m.phase : i.status === "closed" ? "decided" : "deliberate") as PhaseId;
-  return { phase, rationale: m.rationale, actions: Array.isArray(m.actions) ? m.actions.map(String) : undefined, winner: m.winner ?? null, scores: m.scores };
+  return { phase, hold: m.hold === true, rationale: m.rationale, actions: Array.isArray(m.actions) ? m.actions.map(String) : undefined, winner: m.winner ?? null, scores: m.scores };
 }
 
 // --- list ------------------------------------------------------------------------------
@@ -560,16 +561,19 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
   const G = gov.value!;
   const me = myAddr.value;
   const rec = recordOf(i);
-  const phaseIx = PHASES.findIndex((p) => p.id === rec.phase);
   const facilitator = me === i.by;
   const power = chamberPower(d.chambers.map((c) => c.id), d.weights);
   const total = combine(i.options, results, power);
+  // The phase shown is the facilitator's record, stepped forward by any gates that hold (gates.ts).
+  const ph = phaseOf(rec.phase, rec.hold, { decision: i, args, results, power });
+  const phaseIx = PHASES.findIndex((p) => p.id === ph.phase);
+  const closed = rec.phase === "decided";
   const myChambers = d.chambers.filter((ch) => isMemberOf(ch, me));
   const onRoll = !!me && i.voters.includes(me);
   const [recording, setRecording] = useState(false);
   const [delegIn, setDelegIn] = useState<Group | null>(null);
 
-  const setPhase = (phase: PhaseId) => act(`Moving to “${PHASES.find((p) => p.id === phase)!.name}”`, (t) => G.proposeTerm(i.id, `{"phase": ${q(phase)}}`, t), { risk: "consequential", key: `phase:${i.id}:${phase}` });
+  const setPhase = (phase: PhaseId, hold = false) => act(`Moving to “${PHASES.find((p) => p.id === phase)!.name}”`, (t) => G.proposeTerm(i.id, hold ? `{"phase": ${q(phase)}, "hold": true}` : `{"phase": ${q(phase)}}`, t), { risk: "consequential", key: `phase:${i.id}:${phase}` });
 
   return (
     <div>
@@ -586,7 +590,8 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
         ))}
       </div>
       <p class="muted small">{PHASES[phaseIx].what}</p>
-      {me && !onRoll && rec.phase !== "decided" && (
+      {!closed && <GateNote ph={ph} by={i.by} />}
+      {me && !onRoll && !closed && (
         // Someone who joined after the decision opened can read it but not take part
         // yet: say so, and what happens next, instead of greyed-out buttons (#83).
         <div class="callout warn small section">
@@ -598,13 +603,13 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
 
       {args?.title && args.title !== i.title && <div class="card soft section"><b>Background</b><Markdown text={args.title} /></div>}
 
-      {rec.phase === "decided" && <RecordView i={i} rec={rec} args={args} />}
+      {closed && <RecordView i={i} rec={rec} args={args} />}
 
-      {facilitator && rec.phase !== "decided" && <WaitingPanel d={d} issues={[i, ...(args ? [args] : [])]} what="this decision" />}
+      {facilitator && !closed && <WaitingPanel d={d} issues={[i, ...(args ? [args] : [])]} what="this decision" />}
 
-      <div class="section"><Deliberation i={i} args={args} open={rec.phase !== "decided"} /></div>
+      <div class="section"><Deliberation i={i} args={args} open={!closed} /></div>
 
-      {rec.phase === "vote" && (
+      {!closed && (ph.phase === "vote" || ph.phase === "decided") && (
         <div class="section card">
           <h2>Your vote</h2>
           {!me ? null : !onRoll ? <p class="muted small">You can vote once you're added to this decision (see above).</p> : (
@@ -621,21 +626,38 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
         </div>
       )}
 
-      {(rec.phase === "vote" || rec.phase === "decided") && <StakeholderResults i={i} results={results} power={power} total={total} />}
+      {(ph.phase === "vote" || ph.phase === "decided") && <StakeholderResults i={i} results={results} power={power} total={total} />}
 
-      {facilitator && rec.phase !== "decided" && (
+      {facilitator && !closed && (
         <div class="section card">
           <h3>Facilitator</h3>
           <div class="row">
-            {rec.phase === "deliberate" && <button class="primary" onClick={() => setPhase("vote")}>Close deliberation and open voting</button>}
-            {rec.phase === "vote" && <button onClick={() => setPhase("deliberate")}>Back to deliberation</button>}
-            {rec.phase === "vote" && <button class="primary" onClick={() => setRecording(true)}>Record the decision</button>}
-
+            {ph.phase === "deliberate" && <button class="primary" onClick={() => setPhase("vote")}>Open voting now</button>}
+            {ph.phase !== "deliberate" && <button onClick={() => setPhase("deliberate", true)}>Back to deliberation</button>}
+            {(ph.phase === "vote" || ph.phase === "decided") && <button class={ph.phase === "decided" ? "primary" : ""} onClick={() => setRecording(true)}>Record the decision</button>}
+            {rec.hold && <button onClick={() => setPhase("deliberate")}>Let the gates move it again</button>}
           </div>
+          {ph.phase === "decided" && <p class="small muted">The trust gate is met. Recording closes the vote and makes this the decision of record.</p>}
         </div>
       )}
       {recording && <RecordModal i={i} total={total} onClose={() => setRecording(false)} />}
       {delegIn && <DelegateModal g={delegIn} issueId={i.id} issueTitle={i.title} onClose={() => setDelegIn(null)} />}
+    </div>
+  );
+}
+
+/** What the phase shown is waiting for, or that a gate moved it there. */
+function GateNote({ ph, by }: { ph: ReturnType<typeof phaseOf>; by: string }) {
+  const name = PHASES.find((p) => p.id === ph.phase)!.name;
+  return (
+    <div class="small muted" aria-label="Gates">
+      {ph.auto && <div class="callout small" style={{ marginBottom: ".4rem" }}>
+        {ph.phase === "decided"
+          ? <><b>The trust gate is met.</b> One option has enough trust-weighted support to decide. Ballots can still change it until {nameOf(by)} records the decision, which closes it.</>
+          : <><b>Moved to “{name}” by its gates</b>, without waiting for {nameOf(by)}.</>}
+      </div>}
+      {ph.phase !== "decided" && ph.waiting.length > 0 && <div>Moves on by itself when: {ph.waiting.map((w) => <span class={`badge ${w.met ? "" : "warn"}`} style={{ marginRight: ".3rem" }}>{w.met ? "✓ " : ""}{w.says}</span>)}</div>}
+      <Info title="How phases move">Every browser checks the same gates against public data on chain: the points and endorsements on the deliberation board, which stakeholder groups have voted, and the trust-weighted score the node computes for each group. When a phase's gates all hold, everyone sees the decision in the next phase at once. Nothing is written until the facilitator records the decision, so support that falls below the gate first takes it back to voting.</Info>
     </div>
   );
 }

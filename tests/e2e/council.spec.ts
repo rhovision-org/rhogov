@@ -112,11 +112,17 @@ test("a council reaches a decision of record across stakeholder groups", async (
   await settle(carol);
   await open(carol, decision);
   await expect(carol.locator(".arg", { hasText: "Small validators fall behind" }).getByRole("button", { name: "👍 1" })).toBeVisible();
-
-  // Decide.
+  // One endorser: deliberation is still waiting on its gates, and says what for.
   await open(alice, decision);
-  await alice.getByRole("button", { name: "Close deliberation and open voting" }).click();
-  await settle(alice);
+  await expect(alice.getByText("1 of 2 people endorsing a point")).toBeVisible();
+  await open(bob, decision);
+  await bob.locator(".arg", { hasText: "Snappier wallets" }).getByRole("button", { name: /👍/ }).click();
+  await settle(bob);
+
+  // Decide. Two points and two endorsers meet the gates: voting opens without the facilitator.
+  await open(alice, decision);
+  await expect(alice.getByText("by its gates", { exact: false })).toBeVisible();
+  await expect(alice.getByRole("heading", { name: "Your vote" })).toBeVisible();
   for (const [p, choice] of [[alice, "5 seconds"], [bob, "2 seconds"], [carol, "5 seconds"]] as const) {
     await open(p, decision);
     await p.locator("label.choice", { hasText: choice }).click();

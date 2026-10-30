@@ -436,17 +436,27 @@ while its power is 0%.
 
 The facilitator starts a decision with **＋ New decision**: the question, the
 background (the problem and what success looks like), and the options. It then
-moves through four phases:
+moves through four phases. A phase moves on **by itself** when its **gates** hold,
+so nobody has to wait for the facilitator to notice; the decision page lists what
+the current phase is waiting for:
 
 1. **Prepare**: the facilitator frames the question and the options.
 2. **Deliberate**: everyone adds the strongest **points for and against** each
    option and **👍 endorses** the points they find convincing, whichever way
    they'll vote.
-3. **Decide**: the facilitator opens voting. Everyone ticks the options they
-   can live with.
+3. **Decide**: voting opens once the board has at least **two points** and **two
+   people** endorsing them (the facilitator can also open it early). Everyone ticks
+   the options they can live with. Once **every stakeholder group has voted** and one
+   option has at least **two-thirds of the trust-weighted score**, the page says the
+   trust gate is met and the decision is ready to record.
 4. **Record & follow up**: the facilitator records the **decision of record**:
    the outcome, the reasoning, and the **action items** (who does what, by
    when). Points made against the chosen option are kept as **recorded dissent**.
+
+Gates are checked by every browser against the same public data, and nothing is
+written when one is met: if support falls below the gate before the decision is
+recorded, the page goes back to voting. A facilitator who takes a decision **Back
+to deliberation** holds it there until they let the gates move it again.
 
 ![Pros and cons](images/council-deliberation.png)
 
