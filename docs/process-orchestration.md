@@ -1,9 +1,10 @@
 # RhoGov process orchestration: councils
 
-**Status: a design for review by the project's maintainers.** The only decision it asks for
-now is how a council decides, including how it changes the way it decides. Everything else
-waits until a council actually needs it. The first piece, trust gates, is built
-([`src/chain/gates.ts`](../src/chain/gates.ts)); the rest is design.
+**Status: partly built, on trial.** Trust gates are live
+([`src/chain/gates.ts`](../src/chain/gates.ts)): a council decision's phases now move on by
+themselves. The rest of this page is a design for review by the project's maintainers. The
+only decision it asks for now is how a council decides, including how it changes the way it
+decides. Everything else waits until a council actually needs it.
 
 This is the process-orchestration layer for RhoGov. It builds on the
 [Multi-stakeholder councils](../README.md#multi-stakeholder-councils) section of the README and
@@ -28,7 +29,7 @@ A council is already built from parts, but the parts are fixed in code
 | Chamber power | Median of participants' normalised estimates | Issue `<councilId>.weights` |
 | Decision | Approval vote | Issue in the council, mode `approval` |
 | Deliberation | Pros and cons per option, endorsed | Issue `<decisionId>.args` |
-| Phase and record | Prepare → Deliberate → Decide → Record | Facilitator's entry in `results` |
+| Phase and record | Prepare → Deliberate → Decide → Record; Deliberate and Decide move on by their gates | Facilitator's entry in `results` (plus a `hold`) |
 | Combination | Σ chamber power × chamber's weighted approval share | Computed in the browser |
 
 Within each chamber, weights and the winner come from the node's `rho:gov:*` natives. Chamber
@@ -37,10 +38,10 @@ power and the cross-chamber score are browser arithmetic, labelled as recomputed
 
 ## The gap
 
-- **One process.** `PHASES` is a constant. A budget split, an appointment, a charter change
-  and a sign-off all need different steps and instruments.
-- **No gates** (before `gates.ts`). A phase moved only when the facilitator pressed a button,
-  which makes the process burdensome.
+- **One process.** `PHASES` and `DECIDE_GATES` are constants. A budget split, an appointment,
+  a charter change and a sign-off all need different steps, instruments and gates.
+- **Gates are not latched.** Phases now move on by their gates, but the advance is derived in
+  each browser, not written on chain, and no gate can use time yet (see below).
 - **No sequencing between decisions.** Action items are text; nothing turns one into the next
   decision or refers a question to another council.
 - **Combination is fixed.** "Every chamber must agree" cannot be expressed.
