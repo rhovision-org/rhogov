@@ -2,6 +2,7 @@
 import { ARCHIVE_MAX_BYTES, exportInboxArchive, mergeInboxArchive, parseInboxArchive } from "../src/inbox-archive";
 import { approvalShare, approvals, asking, chamberPower, combine, decodeArg, encodeArg, estimateBallot, parseEstimate } from "../src/chain/council";
 import { checkGate, phaseOf } from "../src/chain/gates";
+import { RHOLO_TEMPLATE, checkDefinition, exportDefinition, groupCalls, issueCalls, laterUnder, readPlacement, sourceOf } from "../src/chain/definition";
 import { Gov, type Group, type GroupsRead, type InboxMessage, membershipStatus, pendingOf, readRecord, ReviewDeclined, toGroup } from "../src/chain/gov";
 import {
   active, addCommunity, addressBook, archived, archiveForTransfer, chainIdOf, chainReset, displayName, earlier, fromEarlierChain,
@@ -114,6 +115,46 @@ ok("vote counts: one per person per option, unknown options ignored",
   ok("gate: weaker support keeps voting open", phaseOf("vote", false, { ...debated, results: res({ x: 0.6, y: 0.4 }, { x: 0.5, y: 0.5 }) }).phase === "vote");
   ok("gate: a facilitator's hold stops it", phaseOf("deliberate", true, strong).phase === "deliberate");
   ok("gate: a closed decision does not move", phaseOf("vote", false, { ...strong, decision: { ...dec, status: "closed" } }).phase === "vote");
+}
+
+// Council definitions: checked before signing, created as conventions, exported back.
+{
+  const T = RHOLO_TEMPLATE;
+  const good = checkDefinition(JSON.parse(JSON.stringify(T)));
+  ok("definition: the rholo template checks", !!good.def && good.errors.length === 0, good.errors);
+  const errs = (d: any, ex?: Set<string>) => checkDefinition(d, ex).errors;
+  const base = { kind: "rhogov-council-definition", version: 1 };
+  const ch2 = [{ slug: "a", name: "A" }, { slug: "b", name: "B" }];
+  ok("definition: not JSON-shaped is refused", errs([1]).length === 1);
+  ok("definition: a council with one group is refused", errs({ ...base, councils: [{ slug: "x", name: "X", purpose: "p", chambers: [ch2[0]] }] }).some((e) => e.includes("at least two")));
+  ok("definition: an existing council is not written over", errs({ ...base, councils: [{ slug: "x", name: "X", purpose: "p", chambers: ch2 }] }, new Set(["council-x"])).some((e) => e.includes("already has")));
+  ok("definition: a slug with a dot is refused", errs({ ...base, councils: [{ slug: "x.y", name: "X", purpose: "p", chambers: ch2 }] }).some((e) => e.includes('"slug"')));
+  ok("definition: an unknown parent is named", errs({ ...base, councils: [{ slug: "x", name: "X", purpose: "p", parent: "nope", chambers: ch2 }] }).some((e) => e.includes('"nope"')));
+  ok("definition: a parent loop is refused", errs({ ...base, councils: [
+    { slug: "x", name: "X", purpose: "p", chambers: ch2 },
+    { slug: "y", name: "Y", purpose: "p", parent: "z", chambers: ch2 }, { slug: "z", name: "Z", purpose: "p", parent: "y", chambers: ch2 }] }).some((e) => e.includes("circle")));
+  ok("definition: a child can't be created before its later parent", errs({ ...base, councils: [
+    { slug: "x", name: "X", purpose: "p", chambers: ch2 }, { slug: "y", name: "Y", purpose: "p", parent: "x", later: true, chambers: ch2 },
+    { slug: "z", name: "Z", purpose: "p", parent: "y", chambers: ch2 }] }).some((e) => e.includes("Mark it")));
+  const now = T.councils.filter((c) => !c.later);
+  const gc = groupCalls(now);
+  ok("definition: one group deploy creates the council and its chambers", gc.length === 8 && gc[0][1][0] === '"council-rholo-network"' && gc[1][1][0] === '"council-rholo-network.validators"' && gc[1][1][2] === '"invite"', gc.map((c) => c[1][0]));
+  const ic = issueCalls(T, now, "me");
+  const pl = readPlacement(JSON.parse(ic[1][1][2]));
+  ok("definition: the stored title has no backslash for the rholang parser to refuse", !ic[1][1][2].includes("\\"), ic[1][1][2].slice(0, 80));
+  ok("definition: the source council records the whole file", sourceOf(T) === "council-rholo-network" && pl?.parent === null && pl?.def?.councils.length === T.councils.length, pl);
+  const child = readPlacement(JSON.parse(issueCalls(T, [T.councils[1]], "me")[1][1][2]));
+  ok("definition: a later council records its parent, not the file", child?.parent === "council-rholo-network" && child.source === "council-rholo-network" && !child.def, child);
+  ok("definition: later councils wait under their parent", laterUnder(T, "council-rholo-network", new Set(["council-rholo-network", "council-rholo-fees"])).length === 5);
+  const built = [
+    { cid: "council-rholo-network", name: "Net", purpose: "p", parent: null, chambers: [{ id: "council-rholo-network.users", name: "Users", policy: "open" as const }, { id: "council-rholo-network.validators", name: "Validators", policy: "invite" as const }] },
+    { cid: "council-rholo-fees", name: "Fees", purpose: "q", parent: "council-rholo-network", chambers: [{ id: "council-rholo-fees.users", name: "Users", policy: "open" as const }, { id: "council-rholo-fees.providers", name: "Providers", policy: "open" as const }] },
+    { cid: "council-other", name: "Other", purpose: "r", parent: null, chambers: [] },
+  ];
+  const ex = exportDefinition("council-rholo-network", built, T);
+  ok("definition: export round-trips through the checker", checkDefinition(ex).errors.length === 0, checkDefinition(ex).errors);
+  ok("definition: export keeps the tree and the councils not yet created", eq(ex.councils.map((c) => c.slug).sort(), T.councils.map((c) => c.slug).sort()) && ex.councils.find((c) => c.slug === "rholo-fees")?.parent === "rholo-network" && !ex.councils.find((c) => c.slug === "rholo-fees")?.later);
+  ok("definition: export from a sub-council makes it the top", (() => { const e = exportDefinition("council-rholo-fees", built); return e.councils.length === 1 && !e.councils[0].parent; })());
 }
 
 // Choosing a person by name or address.
