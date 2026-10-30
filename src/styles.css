@@ -56,8 +56,8 @@ p { margin: 0 0 .8em; }
 /* shell */
 .app { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
 .side { background: var(--surface); border-right: 1px solid var(--line); padding: 1rem .8rem; display: flex; flex-direction: column; gap: .3rem; position: sticky; top: 0; height: 100vh; }
-.brand { font-weight: 700; font-size: 1.15rem; padding: .2rem .6rem .8rem; display: flex; gap: .5rem; align-items: center; }
-.brand .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: .95rem; }
+.brand { padding: .2rem .6rem .8rem; }
+.brand img { display: block; height: 36px; width: auto; max-width: 100%; }
 .nav a { display: flex; align-items: center; gap: .6rem; padding: .55rem .7rem; border-radius: 9px; color: var(--text); text-decoration: none; }
 .nav a:hover { background: var(--surface-2); }
 .nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }

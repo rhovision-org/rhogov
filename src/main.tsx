@@ -5,6 +5,7 @@ import { Help } from "./ui/help";
 import { UpdateBanner, watchForUpdates } from "./ui/update";
 import { checkInbox, startInboxWatch, titleWithCount, waitingCount } from "./ui/inbox-watch";
 import "./styles.css";
+import logo from "./assets/rhogov-logo.svg";
 import { active, chainChecked, chainReset, checkChain, currentNode, displayName, myAddr, refreshTick } from "./state";
 import { AccountScreen, CommunityScreen, JoinScreen } from "./ui/settings";
 import { GroupScreen, GroupsScreen } from "./ui/groups";
@@ -61,7 +62,7 @@ function App() {
   return (
     <div class="app">
       <nav class="side">
-        <div class="brand"><span class="logo">ρ</span> rhogov</div>
+        <div class="brand"><img src={logo} alt="rhogov" /></div>
         {ready && <a class="side-community" href="#/community" title={`${active.value!.name}: invite people, switch communities`}>{active.value!.name}</a>}
         {ready && <div class="nav">{NAV.map(([p, icon, label]) => <a href={`#${p}`} class={on(p) ? "on" : ""}><span aria-hidden="true">{icon}</span> {label}{p === "/inbox" && (waitingCount.value ?? 0) > 0 && <span class="count" aria-label={`${waitingCount.value} new`}>{waitingCount.value}</span>}</a>)}</div>}
         <Help />
