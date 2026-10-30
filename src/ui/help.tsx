@@ -12,6 +12,7 @@ import { nameProblem } from "./name-sync";
 import { newVersion } from "./update";
 import { backgroundNotificationChoice, notificationAvailable } from "./inbox-watch";
 import { readPendingInstall, setupNode } from "./setup";
+import { inBackup, notKept, usage } from "../storage";
 
 const REPO = "https://github.com/rhovision-org/rhogov";
 export const GUIDE = `${REPO}/blob/main/docs/user-guide.md`;
@@ -53,6 +54,13 @@ async function tipsFor(): Promise<Tip[]> {
   const tips: Tip[] = [];
   const c = active.value, me = myAddr.value, G = gov.value;
   if (newVersion.value) tips.push({ text: "A newer version of rhogov is available.", href: "javascript:location.reload()", label: "Reload" });
+  if (inBackup.value.length) {
+    const { other } = usage();
+    tips.push({
+      text: <>This site's browser storage is full{other > 1_000_000 ? ", mostly with other apps published at the same address (such as quantum-os)" : ""}, so rhogov keeps what it can't fit there in a backup store in this browser. Nothing is lost, but a keystore file of your key is worth having.</>,
+      href: "#/account", label: "Save key",
+    });
+  }
   if (!me) return [...tips, { text: "Create or bring your key: it's your identity here, and it signs everything you do.", href: "#/welcome", label: "Set up" }];
   // The install form scopes its reminder to the chosen network and identity.
   const nodeUrl = route.value.parts[0] === "welcome" || !c ? setupNode.value : c.node;
@@ -194,6 +202,7 @@ async function snapshot(): Promise<string> {
     const bal = await new RNode(c.node).balance(me).catch(() => null);
     lines.push(`- balance: ${bal === null ? "couldn't read" : `${bal / 1e8} REV`}`);
   }
+  { const u = usage(); lines.push(`- storage: rhogov ${Math.round(u.rhogov / 1000)}k chars, other apps on this site ${Math.round(u.other / 1000)}k${inBackup.value.length ? ` · ${inBackup.value.length} item(s) in the backup store` : ""}${notKept.value ? " · a write was NOT kept" : ""}`); }
   lines.push(`- review before signing: ${reviewBeforeSign.value ? "on" : "off"}`);
   const tips = await tipsFor().catch(() => []);
   lines.push("", "**What rhogov's Help suggested**", "");

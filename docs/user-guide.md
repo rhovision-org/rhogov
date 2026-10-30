@@ -633,6 +633,8 @@ chose; there's no rhogov server, database or account.
 | **"“Name” is taken"** | Someone else in this community already uses that name. Choose another on **Account**. |
 | **"This network was reset"** | The network now runs a new chain, and nothing from before is on it. Choose **Keep my identity** (or a new key for that network), then join or start a community again. See [More than one network, and a network that is reset](#more-than-one-network-and-a-network-that-is-reset). |
 | **"A new version of rhogov is available"** | A newer rhogov was published while your page was open. Press **Reload** (nothing you've done is lost), or **Later**. The version you're running is shown at the bottom of the menu. |
+| **"This browser isn't saving rhogov's data"** | The browser's storage for this site is full or switched off, so a reload would lose your key and communities. Save your key as a keystore file on **Account** straight away, then free storage for the site in the browser's settings. The allowance is shared with every app published at the same address (quantum-os sits beside rhogov), so their data counts too. While a backup store is available rhogov keeps your data there instead, Help says so, and nothing is lost. |
+| **"This is a keystore file (your key), not an inbox archive"** | **Import archive** on the Inbox takes saved messages. A key goes in on the welcome screen: on **Account** choose **Remove from this browser**, then **I have a key** and give it the keystore file. |
 | **Something looks out of date** | rhogov re-reads every 15 seconds; your own actions show up straight away. Reloading the page also works. |
 
 ## 13. Glossary

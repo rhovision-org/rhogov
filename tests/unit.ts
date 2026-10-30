@@ -426,6 +426,13 @@ ok("non-argument rejected", decodeArg("hello") === null);
   );
 
   ok(
+    "a keystore file given to the archive import says where keys go",
+    /keystore file \(your key\).*I have a key/.test(
+      errorOf({ version: 3, id: "x", address: "ab", crypto: { cipher: "aes-128-ctr" } }),
+    ),
+  );
+
+  ok(
     "empty archive round trip",
     parseInboxArchive(
       exportInboxArchive(

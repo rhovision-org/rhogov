@@ -200,6 +200,7 @@ details summary { cursor: pointer; color: var(--muted); }
 
 /* new-version banner */
 .update { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: .6rem .8rem; margin-bottom: 1rem; }
+.update.warn { background: var(--warn-soft); border-color: var(--warn); }
 .update span { flex: 1; min-width: 12rem; }
 .build { font-size: .72rem; padding: 0 .7rem; }
 .tips { margin: .3rem 0 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .45rem; }
