@@ -383,6 +383,10 @@ Some decisions affect very different groups of people: users, developers,
 validators, token holders. A **council** gives each of those groups its own voice
 and lets everyone decide together how much weight each voice gets.
 
+Where councils are going next (reusable components, process templates, and a
+hierarchy of councils for rholo governance) is described in
+[RhoGov process orchestration](process-orchestration.md).
+
 ### Setting one up
 
 Open **Councils** and press **＋ New council**. Give it a name and a short
