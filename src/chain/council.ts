@@ -142,7 +142,7 @@ export interface ChamberResult {
 /** How many ballots approve each option: a plain head count, no weights. */
 export function approvals(options: string[], ballots: Record<string, string[]>): Record<string, number> {
   const n = Object.fromEntries(options.map((o) => [o, 0]));
-  for (const b of Object.values(ballots)) for (const o of new Set(b)) if (o in n) n[o]++;
+  for (const b of Object.values(ballots)) for (const o of new Set(b)) if (Object.prototype.hasOwnProperty.call(n, o)) n[o]++;
   return n;
 }
 
@@ -159,7 +159,7 @@ export function approvalShare(options: string[], out: Outcome | null): Record<st
   if (!total) return share;
   for (const [voter, choices] of Object.entries(out.ballots)) {
     const w = out.weights[voter] ?? 0;
-    for (const c of new Set(choices)) if (c in share) share[c] += w / total;
+    for (const c of new Set(choices)) if (Object.prototype.hasOwnProperty.call(share, c)) share[c] += w / total;
   }
   return share;
 }
