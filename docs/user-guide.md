@@ -399,6 +399,31 @@ The person who creates a council is its **facilitator**. They start out as a
 member of every stakeholder group, so they should **leave the ones they don't
 belong to** (Stakeholder groups tab).
 
+### Loading a template
+
+A **template** sets up a whole structure of councils at once. Open **Councils**
+and press **Load a template…**. Paste a council definition, choose a `.json`
+file, or press **Start from the rholo template**, which declares a network
+council where every rholo stakeholder group has a voice and issue councils
+under it (node upgrades, protocol proposals, treasury, fees, integration
+standards, charter and appointments).
+
+rhogov checks the definition before anything is signed and lists what it will
+create. If something is wrong, it says what to fix and creates nothing; a
+council that already exists in the community is never written over. The
+councils it creates now take two deploys: one for all their groups, one for
+their voting-power estimates and the definition itself.
+
+A council marked **later** isn't created until it's needed. Its parent's page
+lists it under **Councils under this one**, and the facilitator presses
+**Create it now** the first time a question of its kind comes up. A council
+created from a template says which council it's part of.
+
+**Export as a template**, at the foot of any council's page, saves that council,
+the councils under it and any not yet created as a definition file another
+community can load. The format is described in
+[RhoGov process orchestration](process-orchestration.md#the-council-component-deciding-how-we-decide).
+
 ### Joining
 
 On the **Stakeholder groups** tab, tick every group that describes you and press

@@ -39,7 +39,7 @@ export const argsIssueId = (iid: string) => `${iid}.args`;
 export const isChamberOf = (cid: string, gid: string) => gid.startsWith(cid + ".") && !gid.slice(cid.length + 1).includes(".");
 /** A plain group vote's description (#94): its title is the text, opened by the vote's opener in the same deploy. */
 export const aboutIssueId = (iid: string) => `${iid}.about`;
-export const isAuxIssue = (iid: string) => iid.endsWith(".weights") || iid.endsWith(".args") || iid.endsWith(".about");
+export const isAuxIssue = (iid: string) => iid.endsWith(".weights") || iid.endsWith(".args") || iid.endsWith(".about") || iid.endsWith(".definition");
 
 /** The stakeholder kinds the design doc lists, as starting suggestions. */
 export const STAKEHOLDERS: { slug: string; name: string; blurb: string; policy: "open" | "invite" }[] = [

@@ -132,6 +132,7 @@ any rgov-core client can read them:
 | decision | Issue in the council (mode `approval`) |
 | pros and cons | Issue `<decisionId>.args` (options are `pro\|<option>\|<text>`; ballots are endorsements; its title is the background) |
 | phase and decision of record | the facilitator's entry in the decision's `results` |
+| where a council sits in a loaded template | Issue `<councilId>.definition`, its title URI-encoded JSON `{parent, source, def?}`; the first council created holds the whole definition |
 | request to join a group | membership of the open, hidden Group `~asks:<groupId>` (the asker joins it by their own key; pending = on it, not a member, not invited) |
 
 Where councils are going: [RhoGov process orchestration](docs/process-orchestration.md).
