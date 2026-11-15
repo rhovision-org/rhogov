@@ -183,7 +183,7 @@ anywhere else**.
 ## Tests
 
 ```sh
-npm test                              # rgov-core selftest (91 checks) + unit tests
+npm test                              # rgov-core selftest (135 checks) + unit tests
 npm run test:chain                    # the Gov API against a live node (25 checks)
 npm run build && npm run test:e2e     # the built file:// app in Chromium, 2–3 people at once
 RHOGOV_NODE=https://playground.rhobot.net npm run test:e2e -- newcomer   # fresh key + faucet

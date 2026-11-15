@@ -135,7 +135,7 @@ tests/        unit.ts   chain-check.ts (live API)   e2e/*.spec.ts (Playwright, f
 ```sh
 npm install
 npm run typecheck        # tsc --noEmit — the lint step; run before committing
-npm test                 # rgov-core selftest (91 checks) + unit tests (no node needed)
+npm test                 # rgov-core selftest (135 checks) + unit tests (no node needed)
 npm run build            # dist/index.html + dist/version.json (tsc runs first)
 npm run test:e2e         # Playwright against dist/ — BUILD FIRST; needs a node (below)
 npm run test:chain       # the Gov API against a live node
