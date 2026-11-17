@@ -61,7 +61,7 @@ export function parseCharterTitle(title: string): ExportedCharter {
   return charter;
 }
 function walletAddress(pub: string): string {
-  const point = secp256k1.Point.fromHex(unhex(pub)).toBytes(false);
+  const point = secp256k1.Point.fromHex(pub).toBytes(false);
   const payload = new Uint8Array([0,0,0,0,...keccak_256(keccak_256(point.slice(1)).slice(-20))]);
   const check = blake2b(payload,{dkLen:32}).slice(0,4);
   let n=0n;
