@@ -179,6 +179,59 @@ export function simulateCharterPolicy(
   }
   return {verdict,quorumMet,turnout:audit.cast,requiredTurnout,reasons};
 }
+/** Ratification evidence envelope. References are claims until independently verified. */
+export interface CharterRatificationEvidence {
+  schema:"charter-ratification-evidence/1";
+  charterHash:string;
+  groupId:string;
+  issueId:string;
+  policy:{version:string;digest:string;source:string;verified:boolean};
+  electorate:{blockHash:string;rollDigest:string;verified:boolean};
+  tally:{blockHash:string;ballotDigest:string;weightsDigest:string;
+         delegationDigest:string;nativeWinner:string;reproduced:boolean};
+  finality:{blockHash:string;proofDigest:string;verified:boolean};
+}
+export interface CharterEvidenceGate {
+  ready:boolean;
+  reasons:string[];
+  references:{policy:string;electorate:string;tally:string;finality:string};
+}
+/** Evidence gate only; no automatic promotion of Issue/4 status. */
+export function auditCharterEvidence(
+  evidence:CharterRatificationEvidence,
+  expected:{charterHash:string;groupId:string},
+  ballots:CharterBallotAudit
+):CharterEvidenceGate {
+  const reasons:string[]=[];
+  const ref=(v:string)=>typeof v==="string" && hex64.test(v);
+  if (evidence.schema!=="charter-ratification-evidence/1" ||
+      evidence.charterHash!==expected.charterHash ||
+      evidence.groupId!==expected.groupId ||
+      evidence.issueId!==proposalId(expected.charterHash))
+    reasons.push("evidence identity mismatch");
+  if (!ballots.ok) reasons.push("ballot audit failed");
+  if (!evidence.policy.verified || !ref(evidence.policy.digest) ||
+      !evidence.policy.version || !evidence.policy.source)
+    reasons.push("unverified or incomplete council policy provenance");
+  if (!evidence.electorate.verified || !ref(evidence.electorate.blockHash) ||
+      !ref(evidence.electorate.rollDigest))
+    reasons.push("missing independently verified historical electorate");
+  if (!evidence.tally.reproduced || !ref(evidence.tally.blockHash) ||
+      !ref(evidence.tally.ballotDigest) ||
+      !ref(evidence.tally.weightsDigest) ||
+      !ref(evidence.tally.delegationDigest) ||
+      !["approve","reject"].includes(evidence.tally.nativeWinner))
+    reasons.push("missing independently reproduced weighted native tally");
+  if (!evidence.finality.verified || !ref(evidence.finality.blockHash) ||
+      !ref(evidence.finality.proofDigest))
+    reasons.push("missing verified Rholo finality");
+  if (evidence.tally.blockHash!==evidence.finality.blockHash)
+    reasons.push("tally and finality block mismatch");
+  return {ready:reasons.length===0,reasons,references:{
+    policy:evidence.policy.digest,electorate:evidence.electorate.blockHash,
+    tally:evidence.tally.blockHash,finality:evidence.finality.proofDigest
+  }};
+}
 export interface CharterStatus {
   status: "pending" | "approved" | "rejected" | "unknown";
   proposalId:string;

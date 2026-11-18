@@ -68,3 +68,23 @@ assert.equal(simulateCharterPolicy(auditCharterBallots({...baseAudit,voters:["wa
 for(const bad of [{...policy,quorumDenominator:0},{...policy,approvalNumerator:3},{...policy,quorumNumerator:-1}])
   assert.throws(()=>simulateCharterPolicy(audited,bad));
 console.log("PASS: explicit quorum/strict-majority simulation, abstention, invalid policy and fail-closed roll");
+
+const {auditCharterEvidence}=await import("../src/chain/success-charter");
+const hash="a".repeat(64), block="b".repeat(64), proofDigest="c".repeat(64);
+const envelope={
+ schema:"charter-ratification-evidence/1" as const,charterHash:hash,groupId:"council",
+ issueId:proposalId(hash),
+ policy:{version:"v1",digest:proofDigest,source:"approved council policy",verified:true},
+ electorate:{blockHash:block,rollDigest:proofDigest,verified:true},
+ tally:{blockHash:block,ballotDigest:proofDigest,weightsDigest:proofDigest,delegationDigest:proofDigest,
+        nativeWinner:"approve",reproduced:true},
+ finality:{blockHash:block,proofDigest:proofDigest,verified:true}
+};
+const expected={charterHash:hash,groupId:"council"};
+assert.equal(auditCharterEvidence(envelope,expected,threeAudit).ready,true);
+assert.equal(auditCharterEvidence({...envelope,policy:{...envelope.policy,verified:false}},expected,threeAudit).ready,false);
+assert.equal(auditCharterEvidence({...envelope,finality:{...envelope.finality,blockHash:proofDigest}},expected,threeAudit).ready,false);
+assert.equal(auditCharterEvidence({...envelope,tally:{...envelope.tally,reproduced:false}},expected,threeAudit).ready,false);
+assert.equal(auditCharterEvidence(envelope,{...expected,groupId:"other"},threeAudit).ready,false);
+assert.equal(auditCharterEvidence(envelope,expected,{...threeAudit,ok:false}).ready,false);
+console.log("PASS: evidence gate rejects policy, tally, finality, identity and ballot mismatches");

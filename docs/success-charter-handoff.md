@@ -59,3 +59,7 @@ Reserve "signed" for the verified secp256k1 wallet authorization and on-chain de
 ## Policy simulation (non-authoritative)
 
 The simulateCharterPolicy helper is a deterministic what-if check of turnout, abstention, quorum and strict approval fraction. It is not an authenticated council policy, historical membership proof, weighted delegation tally, or Rholo finality witness. Even a hypothetical approve verdict never promotes chain status to approved.
+
+## Ratification evidence envelope v1
+
+The read-only auditCharterEvidence gate requires policy version, policy digest and source, a verified historical electorate snapshot, a reproduced native weighted tally with ballot/weight/delegation digests, and a finality proof bound to the same block as the tally. The envelope carries verification flags supplied by an independent verifier; this helper checks shape, binding and declared verification state, **not** signatures, cryptographic membership inclusion, native tally arithmetic, or finality itself. Untrusted callers can forge the flags; the gate is not an authority to promote to approved or rejected. Actual proof verification and adopted council policy remain external prerequisites.
