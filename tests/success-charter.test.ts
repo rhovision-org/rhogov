@@ -55,3 +55,16 @@ for(const changed of [
  {...baseAudit,status:"open"}
 ]) assert.equal(auditCharterBallots(changed,["wallet-a","wallet-b"]).ok,false);
 console.log("PASS: native ballot audit rejects roll mutation, outsider, malformed, guest and premature promotion");
+
+const {simulateCharterPolicy}=await import("../src/chain/success-charter");
+const policy={quorumNumerator:2,quorumDenominator:3,approvalNumerator:1,approvalDenominator:2};
+const three={...baseAudit,voters:["a","b","c"],ballots:{a:["approve"],b:["approve"]}};
+const threeAudit=auditCharterBallots(three,["a","b","c"]);
+assert.equal(threeAudit.abstained,1);
+assert.equal(simulateCharterPolicy(threeAudit,policy).verdict,"approve");
+assert.equal(simulateCharterPolicy({...threeAudit,cast:1},policy).verdict,"inconclusive");
+assert.equal(simulateCharterPolicy(audited,policy).verdict,"reject");
+assert.equal(simulateCharterPolicy(auditCharterBallots({...baseAudit,voters:["wallet-a"]},["wallet-a","wallet-b"]),policy).verdict,"inconclusive");
+for(const bad of [{...policy,quorumDenominator:0},{...policy,approvalNumerator:3},{...policy,quorumNumerator:-1}])
+  assert.throws(()=>simulateCharterPolicy(audited,bad));
+console.log("PASS: explicit quorum/strict-majority simulation, abstention, invalid policy and fail-closed roll");

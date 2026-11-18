@@ -55,3 +55,7 @@ Reserve "signed" for the verified secp256k1 wallet authorization and on-chain de
 ## Independent ballot evidence audit (read-only)
 
 `Gov.successCharterBallotAudit(groupId, charterHash)` fetches the actual Issue/4 and Group/4 records, validates the exact canonical artifact, and independently counts the published approval/rejection ballots. It rejects malformed or multi-choice ballots, votes outside the frozen electorate, duplicate or unrecognized voter entries, guest participation without an explicit policy, and roll changes after voting begins. The returned counts are **evidence**, not a council policy verdict. In particular, the current Group/4 policy (`open`/`invite`) does not encode council quorum, weighting, abstention, or independent tally finality. Therefore even an internally consistent closed majority remains `unknown` in `successCharterStatus` until a separately reviewed council policy and finality witness are specified. This is intentional fail-closed behavior.
+
+## Policy simulation (non-authoritative)
+
+The simulateCharterPolicy helper is a deterministic what-if check of turnout, abstention, quorum and strict approval fraction. It is not an authenticated council policy, historical membership proof, weighted delegation tally, or Rholo finality witness. Even a hypothetical approve verdict never promotes chain status to approved.

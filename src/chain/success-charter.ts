@@ -110,6 +110,7 @@ export interface CharterBallotAudit {
   no: number;
   eligible: number;
   cast: number;
+  abstained: number;
   reasons: string[];
 }
 export function auditCharterBallots(issue: {
@@ -128,6 +129,8 @@ export function auditCharterBallots(issue: {
     reasons.push("voter roll has duplicates or is not a subset of the current group");
   if (new Set(groupMembers).size!==groupMembers.length)
     reasons.push("duplicate group members");
+  if (roll.size!==members.size || [...members].some(v=>!roll.has(v)))
+    reasons.push("frozen roll differs from current group; historical membership proof required");
   if ((issue.guests || []).length) reasons.push("guest electorate requires separate policy review");
   if ((issue.rollLog || []).some(e=>e.ballotsBefore>0))
     reasons.push("electorate changed after ballots were cast");
@@ -142,7 +145,39 @@ export function auditCharterBallots(issue: {
   }
   if (yes+no===0) reasons.push("no valid ballots");
   return {ok:reasons.length===0,yes,no,eligible:voters.length,
-          cast:Object.keys(issue.ballots || {}).length,reasons};
+          cast:Object.keys(issue.ballots || {}).length,
+          abstained:Math.max(0,voters.length-Object.keys(issue.ballots || {}).length),reasons};
+}
+export interface CharterPolicySimulation {
+  verdict:"approve"|"reject"|"inconclusive";
+  quorumMet:boolean; turnout:number; requiredTurnout:number; reasons:string[];
+}
+/** Hypothetical policy only: never use to promote chain-facing status. */
+export function simulateCharterPolicy(
+  audit:CharterBallotAudit,
+  policy:{quorumNumerator:number;quorumDenominator:number;
+          approvalNumerator:number;approvalDenominator:number}
+):CharterPolicySimulation {
+  const nums=[policy.quorumNumerator,policy.quorumDenominator,
+              policy.approvalNumerator,policy.approvalDenominator];
+  if (!nums.every(Number.isSafeInteger) || policy.quorumDenominator<=0 ||
+      policy.approvalDenominator<=0 || policy.quorumNumerator<0 ||
+      policy.quorumNumerator>policy.quorumDenominator ||
+      policy.approvalNumerator<=0 ||
+      policy.approvalNumerator>policy.approvalDenominator)
+    throw new Error("invalid policy fraction");
+  const requiredTurnout=Math.ceil(audit.eligible*policy.quorumNumerator/policy.quorumDenominator);
+  const quorumMet=audit.cast>=requiredTurnout;
+  const reasons=[...audit.reasons];
+  if (!quorumMet) reasons.push("quorum not met");
+  const total=audit.yes+audit.no;
+  let verdict:CharterPolicySimulation["verdict"]="inconclusive";
+  if (audit.ok && quorumMet && total>0) {
+    const passed=BigInt(audit.yes)*BigInt(policy.approvalDenominator)>
+                 BigInt(total)*BigInt(policy.approvalNumerator);
+    verdict=passed?"approve":"reject";
+  }
+  return {verdict,quorumMet,turnout:audit.cast,requiredTurnout,reasons};
 }
 export interface CharterStatus {
   status: "pending" | "approved" | "rejected" | "unknown";
