@@ -101,6 +101,49 @@ export function verifyCharterSignatures(charter: ExportedCharter,
   }
   if (!admin) throw new Error("no authenticated admin in on-chain group");
 }
+/** Independent ballot audit, NOT a council-policy ratification verdict.
+ * A result claimed by the issue opener is never counted as evidence.
+ */
+export interface CharterBallotAudit {
+  ok: boolean;
+  yes: number;
+  no: number;
+  eligible: number;
+  cast: number;
+  reasons: string[];
+}
+export function auditCharterBallots(issue: {
+  status:string; mode:string; options:string[]; voters:string[];
+  guests:string[]; ballots:Record<string,string[]>;
+  rollLog?: {seq:number;voters:number;ballotsBefore:number}[];
+}, groupMembers: string[]): CharterBallotAudit {
+  const reasons:string[]=[];
+  const voters=issue.voters || [];
+  const members=new Set(groupMembers);
+  const roll=new Set(voters);
+  if (issue.status!=="closed") reasons.push("issue not closed");
+  if (issue.mode!=="approval" || canonical(issue.options)!==canonical(["approve","reject"]))
+    reasons.push("invalid approval options");
+  if (roll.size!==voters.length || voters.some(v=>!v || !members.has(v)))
+    reasons.push("voter roll has duplicates or is not a subset of the current group");
+  if (new Set(groupMembers).size!==groupMembers.length)
+    reasons.push("duplicate group members");
+  if ((issue.guests || []).length) reasons.push("guest electorate requires separate policy review");
+  if ((issue.rollLog || []).some(e=>e.ballotsBefore>0))
+    reasons.push("electorate changed after ballots were cast");
+  let yes=0,no=0;
+  for (const [v, choices] of Object.entries(issue.ballots || {})) {
+    if (!roll.has(v)) reasons.push("ballot from voter outside frozen roll");
+    if (!Array.isArray(choices) || choices.length!==1 ||
+        (choices[0]!=="approve" && choices[0]!=="reject")) {
+      reasons.push("malformed or ambiguous ballot"); continue;
+    }
+    if (choices[0]==="approve") yes++; else no++;
+  }
+  if (yes+no===0) reasons.push("no valid ballots");
+  return {ok:reasons.length===0,yes,no,eligible:voters.length,
+          cast:Object.keys(issue.ballots || {}).length,reasons};
+}
 export interface CharterStatus {
   status: "pending" | "approved" | "rejected" | "unknown";
   proposalId:string;

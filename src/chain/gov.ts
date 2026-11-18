@@ -12,6 +12,7 @@
 // "fromDeployerId"), so a write can only ever touch the caller's own row.
 
 import * as core from "./rgov-core.js";
+import { auditCharterBallots } from "./success-charter";
 import { proposalId as charterProposalId, encodeCharterTitle, parseCharterTitle,
          verifyCharterSignatures, readCharterIssue, type ExportedCharter, type CharterStatus
        } from "./success-charter";
@@ -592,6 +593,15 @@ export class Gov {
   // --- QuantumOS success-charter/1 bridge (Issue/4) ---------------------------
 
   /** Read an Issue/4 proposal; never mutate the group or infer a vote result. */
+  /** Evidence-only read: no policy/quorum promotion from a bare ballot majority. */
+  async successCharterBallotAudit(groupId: string, charterHash: string) {
+    const id=charterProposalId(charterHash);
+    const [issue,group]=await Promise.all([this.issue(id),this.group(groupId)]);
+    if (!issue || !group) throw new GovError("missing chain issue or group");
+    readCharterIssue(issue,groupId,charterHash);
+    return auditCharterBallots(issue,group.members.map(m=>m.addr));
+  }
+
   async successCharterStatus(groupId: string, charterHash: string): Promise<CharterStatus> {
     return readCharterIssue(await this.issue(charterProposalId(charterHash)), groupId, charterHash);
   }

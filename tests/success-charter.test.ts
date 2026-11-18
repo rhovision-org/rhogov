@@ -36,3 +36,22 @@ const trustBoundary = await import("../src/chain/success-charter");
 assert.equal(trustBoundary.CHARTER_AUTHORIZATION_TRUST.walletSignature, "secp256k1-wallet-verified");
 assert.equal(trustBoundary.CHARTER_AUTHORIZATION_TRUST.dyncapAttribution, "hash-only-tofu-unverified");
 assert.equal(trustBoundary.CHARTER_AUTHORIZATION_TRUST.pollRatification, "not-independently-verified");
+
+
+// Native ballot audit must not promote an opener's result to ratification.
+const {auditCharterBallots}=await import("../src/chain/success-charter");
+const baseAudit:{status:string;mode:string;options:string[];voters:string[];guests:string[];ballots:Record<string,string[]>;rollLog:{seq:number;voters:number;ballotsBefore:number}[]}={status:"closed",mode:"approval",options:["approve","reject"],
+ voters:["wallet-a","wallet-b"],guests:[],ballots:{"wallet-a":["approve"],"wallet-b":["reject"]},rollLog:[]};
+const audited=auditCharterBallots(baseAudit,["wallet-a","wallet-b"]);
+assert.deepEqual({ok:audited.ok,yes:audited.yes,no:audited.no},{ok:true,yes:1,no:1});
+assert.equal(readCharterIssue({...item,status:"closed"},
+ charter.group.id,charter.charterHash).status,"unknown");
+for(const changed of [
+ {...baseAudit,ballots:{"outsider":["approve"]}},
+ {...baseAudit,ballots:{"wallet-a":["approve","reject"]}},
+ {...baseAudit,voters:["wallet-a","wallet-a"]},
+ {...baseAudit,guests:["guest"]},
+ {...baseAudit,rollLog:[{seq:2,voters:2,ballotsBefore:1}]},
+ {...baseAudit,status:"open"}
+]) assert.equal(auditCharterBallots(changed,["wallet-a","wallet-b"]).ok,false);
+console.log("PASS: native ballot audit rejects roll mutation, outsider, malformed, guest and premature promotion");

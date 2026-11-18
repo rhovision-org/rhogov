@@ -51,3 +51,7 @@ A green TypeScript build, a signed deploy accepted by the node, or an `Issue/4` 
 - `pollRatification = not-independently-verified`: a room poll and Issue/4 record are not independent council ratification.
 
 Reserve "signed" for the verified secp256k1 wallet authorization and on-chain deploy. Never label the room journal or dyncap anchor cryptographically signed.
+
+## Independent ballot evidence audit (read-only)
+
+`Gov.successCharterBallotAudit(groupId, charterHash)` fetches the actual Issue/4 and Group/4 records, validates the exact canonical artifact, and independently counts the published approval/rejection ballots. It rejects malformed or multi-choice ballots, votes outside the frozen electorate, duplicate or unrecognized voter entries, guest participation without an explicit policy, and roll changes after voting begins. The returned counts are **evidence**, not a council policy verdict. In particular, the current Group/4 policy (`open`/`invite`) does not encode council quorum, weighting, abstention, or independent tally finality. Therefore even an internally consistent closed majority remains `unknown` in `successCharterStatus` until a separately reviewed council policy and finality witness are specified. This is intentional fail-closed behavior.
