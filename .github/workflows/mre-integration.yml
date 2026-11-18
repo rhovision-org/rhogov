@@ -19,7 +19,7 @@ jobs:
       - name: Fetch exact upstream Profile-A source (unmerged PR #318)
         run: |
           git clone --quiet https://github.com/rhovision-org/quantum-os.git /tmp/qos-mre
-          git -C /tmp/qos-mre checkout --quiet 2ee7ed6dc7190ecfab07d9d857d8aee868de0c1a
+          git -C /tmp/qos-mre checkout --quiet 1849e330e507c0b309681c6056ce15a095783167
           echo '99b85c395e792eed8b30708d493c03f87d778965634b6db449a04d77759d832f  /tmp/qos-mre/crates/mre-core/tests/qlf_vectors.json' | sha256sum -c -
       - name: Build and test real Rust implementation
         run: |
