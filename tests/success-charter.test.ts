@@ -29,3 +29,10 @@ assert.equal(readCharterIssue({...item,status:"closed"},charter.group.id,charter
 assert.throws(()=>readCharterIssue({...item,title:title.replace("g-291-fixture","g-mismatch")},charter.group.id,charter.charterHash));
 assert.throws(()=>readCharterIssue({...item,gid:"another"},charter.group.id,charter.charterHash));
 console.log("PASS: RhoGov success-charter Issue/4 adapter, shared vector and tamper controls");
+
+
+// Regression: TOFU attribution must never be promoted to a signature.
+const trustBoundary = await import("../src/chain/success-charter");
+assert.equal(trustBoundary.CHARTER_AUTHORIZATION_TRUST.walletSignature, "secp256k1-wallet-verified");
+assert.equal(trustBoundary.CHARTER_AUTHORIZATION_TRUST.dyncapAttribution, "hash-only-tofu-unverified");
+assert.equal(trustBoundary.CHARTER_AUTHORIZATION_TRUST.pollRatification, "not-independently-verified");

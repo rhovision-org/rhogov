@@ -42,3 +42,12 @@ Both repositories include the **byte-identical** `contract/success-charter-1-vec
 ## Non-promotion conditions
 
 A green TypeScript build, a signed deploy accepted by the node, or an `Issue/4` record with status `closed` **does not close #291**. Completion requires demonstrated source-to-installed-binary provenance, exact read-back after inclusion, independent ballot/quorum/tally verification, verified chain finality where required, and a genuine human/group authorized handoff from a browser. Do not mark cross-repo chain governance as complete based solely on a mock or fixture.
+
+
+### Mandatory trust classification (QOS/1 review)
+
+- `walletSignature = secp256k1-wallet-verified`: the `sc1` authorization proves control of the matching REV wallet key for the domain-separated charter hash and claimed anchor.
+- `dyncapAttribution = hash-only-tofu-unverified`: the room anchor is hash/TOFU attribution, **not** a dyncap seed signature or proof of seed possession.
+- `pollRatification = not-independently-verified`: a room poll and Issue/4 record are not independent council ratification.
+
+Reserve "signed" for the verified secp256k1 wallet authorization and on-chain deploy. Never label the room journal or dyncap anchor cryptographically signed.

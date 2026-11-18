@@ -6,6 +6,12 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import { blake2b } from "@noble/hashes/blake2.js";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 
+// A wallet signature does not prove ownership of the hash/TOFU dyncap seed.
+export const CHARTER_AUTHORIZATION_TRUST = {
+  walletSignature: "secp256k1-wallet-verified",
+  dyncapAttribution: "hash-only-tofu-unverified",
+  pollRatification: "not-independently-verified",
+} as const;
 export const CHARTER_TITLE_PREFIX = "qos/success-charter/1:";
 export const CHARTER_PROPOSAL_PREFIX = "success-charter-";
 const hex64 = /^[a-f0-9]{64}$/;
