@@ -1,0 +1,33 @@
+name: MrE Rust-to-RhoGov conformance
+on:
+  pull_request:
+    paths:
+      - 'src/chain/mre-*'
+      - 'tests/mre-*'
+      - '.github/workflows/mre-integration.yml'
+  workflow_dispatch:
+jobs:
+  exact-rational-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Fetch exact upstream Profile-A source (unmerged PR #318)
+        run: |
+          git clone --quiet https://github.com/rhovision-org/quantum-os.git /tmp/qos-mre
+          git -C /tmp/qos-mre checkout --quiet 2ee7ed6dc7190ecfab07d9d857d8aee868de0c1a
+          echo '99b85c395e792eed8b30708d493c03f87d778965634b6db449a04d77759d832f  /tmp/qos-mre/crates/mre-core/tests/qlf_vectors.json' | sha256sum -c -
+      - name: Build and test real Rust implementation
+        run: |
+          cargo test -p mre-core --manifest-path /tmp/qos-mre/Cargo.toml
+          cargo build -p mre-core --bin mre-profile-a --manifest-path /tmp/qos-mre/Cargo.toml
+      - run: npm ci
+      - name: Run cross-repository real-process conformance
+        env:
+          MRE_NATIVE_BIN: /tmp/qos-mre/target/debug/mre-profile-a
+          MRE_QLF_VECTORS: /tmp/qos-mre/crates/mre-core/tests/qlf_vectors.json
+        run: npx tsx tests/mre-native-integration.test.ts
