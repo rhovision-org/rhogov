@@ -135,7 +135,10 @@ any rgov-core client can read them:
 | decision | Issue in the council (mode `approval`) |
 | pros and cons | Issue `<decisionId>.args` (options are `pro\|<option>\|<text>`; ballots are endorsements; its title is the background) |
 | phase and decision of record | the facilitator's entry in the decision's `results` |
+| where a council sits in a loaded template | Issue `<councilId>.definition`, its title URI-encoded JSON `{parent, source, def?}`; the first council created holds the whole definition |
 | request to join a group | membership of the open, hidden Group `~asks:<groupId>` (the asker joins it by their own key; pending = on it, not a member, not invited) |
+
+Where councils are going: [RhoGov process orchestration](docs/process-orchestration.md).
 
 ## Interop with quantum-os
 
@@ -183,7 +186,7 @@ anywhere else**.
 ## Tests
 
 ```sh
-npm test                              # rgov-core selftest (91 checks) + unit tests
+npm test                              # rgov-core selftest (135 checks) + unit tests
 npm run test:chain                    # the Gov API against a live node (25 checks)
 npm run build && npm run test:e2e     # the built file:// app in Chromium, 2–3 people at once
 RHOGOV_NODE=https://playground.rhobot.net npm run test:e2e -- newcomer   # fresh key + faucet

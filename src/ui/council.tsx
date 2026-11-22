@@ -6,6 +6,11 @@ import {
   chamberId, chamberPower, combine, councilsOf, decodeArg, encodeArg, estimateBallot, isAuxIssue, parseEstimate, weightsIssueId,
   approvals,
 } from "../chain/council";
+import { phaseOf } from "../chain/gates";
+import {
+  type Built, type CouncilSpec, type Definition, type Placement, RHOLO_TEMPLATE, checkDefinition, councilIdOf, definitionIssueId,
+  exportDefinition, groupCalls, issueCalls, laterUnder, readPlacement, sourceOf,
+} from "../chain/definition";
 import { Gov, type Group, type Issue, asksId, isMemberOf, isPending, makeId, pendingOf, q, qList, qSet } from "../chain/gov";
 import { displayName, gov, learnListed, myAddr } from "../state";
 import { ApproveModal, DelegateModal, learnFrom, useV4 } from "./groups";
@@ -22,6 +27,20 @@ interface CouncilData extends Council {
   weights: Issue | null;
   decisions: Issue[];
   participants: string[];
+  /** Where it sits in a structure loaded from a definition; null for a council made with the New council form. */
+  placement: Placement | null;
+  /** Every council in the community as it stands, for sub-councils and export. */
+  built: (Built & { placement: Placement | null })[];
+}
+
+/** A council as export sees it: its groups, its purpose, and its parent. */
+function builtOf(c: Council, issues: Issue[]): Built & { placement: Placement | null } {
+  const placement = readPlacement(issues.find((i) => i.id === definitionIssueId(c.group.id))?.title);
+  return {
+    cid: c.group.id, name: c.group.name, purpose: issues.find((i) => i.id === weightsIssueId(c.group.id))?.title ?? "",
+    parent: placement?.parent ?? null, placement,
+    chambers: c.chambers.map((ch) => ({ id: ch.id, name: ch.name, policy: ch.policy })),
+  };
 }
 
 async function loadCouncil(cid: string): Promise<CouncilData | null> {
@@ -29,24 +48,28 @@ async function loadCouncil(cid: string): Promise<CouncilData | null> {
   const read = await G.groupsRead();
   const groups = read.groups;
   learnFrom(groups, { community: G.c, addr: myAddr.value ?? "" }, read);
-  const c = councilsOf(groups).find((x) => x.group.id === cid);
+  const all = councilsOf(groups);
+  const c = all.find((x) => x.group.id === cid);
   if (!c) return null;
   const issues = await G.issues(cid);
+  const built = await Promise.all(all.map(async (x) => builtOf(x, x.group.id === cid ? issues : await G.issues(x.group.id).catch(() => [] as Issue[]))));
   const participants = [...new Set([...c.group.members, ...c.chambers.flatMap((ch) => ch.members)].map((m) => m.addr))];
   return {
     ...c,
     weights: issues.find((i) => i.id === weightsIssueId(cid)) ?? null,
     decisions: issues.filter((i) => !isAuxIssue(i.id)).reverse(),
     participants,
+    placement: built.find((b) => b.cid === cid)!.placement,
+    built,
   };
 }
 
 /** The facilitator's record on a decision: phase, and at the end the decision of record. */
-function recordOf(i: Issue): { phase: PhaseId; rationale?: string; actions?: string[]; winner?: string | null; scores?: Record<string, number> } {
+function recordOf(i: Issue): { phase: PhaseId; hold: boolean; rationale?: string; actions?: string[]; winner?: string | null; scores?: Record<string, number> } {
   const r = i.results[i.by];
   const m = r && typeof r === "object" && !Array.isArray(r) ? (r as Record<string, any>) : {};
   const phase = (PHASES.some((p) => p.id === m.phase) ? m.phase : i.status === "closed" ? "decided" : "deliberate") as PhaseId;
-  return { phase, rationale: m.rationale, actions: Array.isArray(m.actions) ? m.actions.map(String) : undefined, winner: m.winner ?? null, scores: m.scores };
+  return { phase, hold: m.hold === true, rationale: m.rationale, actions: Array.isArray(m.actions) ? m.actions.map(String) : undefined, winner: m.winner ?? null, scores: m.scores };
 }
 
 // --- list ------------------------------------------------------------------------------
@@ -65,11 +88,15 @@ export function CouncilsScreen() {
     return extra;
   }, [G.c.group]);
   const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(false);
   return (
     <div>
       <div class="row between">
         <h1>Councils</h1>
-        <button class="primary" onClick={() => setCreating(true)}>＋ New council</button>
+        <div class="row">
+          <button onClick={() => setLoading(true)}>Load a template…</button>
+          <button class="primary" onClick={() => setCreating(true)}>＋ New council</button>
+        </div>
       </div>
       <p class="muted">A council makes decisions across several stakeholder groups — users, developers, validators, token holders and more. Each group keeps its own trust and delegation, and has voting power the participants estimate together.</p>
       <Loading a={a}>{() => a.data!.length ? (
@@ -84,6 +111,110 @@ export function CouncilsScreen() {
         </div>
       ) : <div class="card soft empty section">No councils yet. Start one to bring several stakeholder groups to the same table.</div>}</Loading>
       {creating && <NewCouncilModal onClose={() => setCreating(false)} />}
+      {loading && <LoadDefinitionModal existing={new Set(a.data?.map((x) => x.c.group.id) ?? [])} onClose={() => setLoading(false)} />}
+    </div>
+  );
+}
+
+/** Parse and check a definition's text; the errors say what to fix. */
+function parseDefinition(text: string, existing: Set<string>): { def?: Definition; errors: string[] } {
+  if (!text.trim()) return { errors: [] };
+  try { return checkDefinition(JSON.parse(text), existing); } catch (e) { return { errors: [`This isn't valid JSON: ${(e as Error).message}`] }; }
+}
+
+/**
+ * Create the councils in `now` from a definition: one deploy for all their
+ * groups, one for their voting-power estimates and definition records.
+ */
+async function createFrom(def: Definition, now: CouncilSpec[]): Promise<boolean> {
+  const G = gov.value!;
+  const me = myAddr.value!;
+  const groups = now.reduce((n, c) => n + c.chambers.length, 0);
+  const what = now.length === 1 ? now[0].name : `${now.length} councils`;
+  const made = await act(`Creating ${what} and ${groups} stakeholder groups`, (t) => G.batch("group", groupCalls(now), t),
+    { risk: "consequential", key: `createDefinition:${now.map((c) => c.slug).join(",")}`, done: "Councils and stakeholder groups created." });
+  if (!made) return false;
+  const opened = await act(`Opening the voting-power estimates and recording the definition`, (t) => G.batch("issue", issueCalls(def, now, me), t),
+    { risk: "consequential", key: `recordDefinition:${now.map((c) => c.slug).join(",")}`, done: "The definition is recorded with the councils." });
+  return !!opened;
+}
+
+function LoadDefinitionModal({ existing, onClose }: { existing: Set<string>; onClose: () => void }) {
+  const [text, setText] = useState("");
+  const { def, errors } = parseDefinition(text, existing);
+  const now = def?.councils.filter((c) => !c.later) ?? [];
+  const later = def?.councils.filter((c) => c.later) ?? [];
+  const nameOfSlug = (slug?: string) => def?.councils.find((c) => c.slug === slug)?.name ?? slug;
+  const create = async () => {
+    onClose();
+    if (await createFrom(def!, now)) go(cHref(sourceOf(def!)));
+  };
+  const pick = async (f?: File) => { if (f) setText(await f.text()); };
+  return (
+    <Modal title="Load a council template" onClose={onClose}
+      actions={<><button onClick={onClose}>Cancel</button><button class="primary" disabled={!def} onClick={create}>Create {now.length === 1 ? "council" : `${now.length} councils`}</button></>}>
+      <div class="stack">
+        <p class="muted small">A template is a council definition: councils, their stakeholder groups, and which council each sits under. rhogov checks it, shows what it will create, and creates it in two deploys. Councils marked <i>later</i> are created from their parent's page when they're first needed.</p>
+        <div class="row">
+          <button onClick={() => setText(JSON.stringify(RHOLO_TEMPLATE, null, 2))}>Start from the rholo template</button>
+          <label class="field" style={{ margin: 0 }}><input type="file" accept=".json,application/json" aria-label="Template file" onChange={(e) => pick((e.target as HTMLInputElement).files?.[0])} /></label>
+        </div>
+        <label class="field">Definition (JSON)
+          <textarea rows={10} class="mono small" value={text} placeholder={`{"kind": "rhogov-council-definition", "version": 1, "councils": [ … ]}`} onInput={(e) => setText((e.target as HTMLTextAreaElement).value)} />
+        </label>
+        {errors.length > 0 && (
+          <div class="callout warn small"><b>Fix these first:</b><ul>{errors.map((e) => <li>{e}</li>)}</ul></div>
+        )}
+        {def && (
+          <div class="card soft small">
+            <b>Creates now</b>
+            <ul>{now.map((c) => <li>{c.name}{c.parent ? <>, under {nameOfSlug(c.parent)}</> : ""}: {c.chambers.map((ch) => ch.name + (ch.policy === "invite" ? " (invite only)" : "")).join(", ")}</li>)}</ul>
+            {later.length > 0 && <><b>Later, when first needed</b><ul>{later.map((c) => <li>{c.name}, under {nameOfSlug(c.parent)}: {c.chambers.map((ch) => ch.name).join(", ")}</li>)}</ul></>}
+            <p class="muted">You'll facilitate every council created now: you become the first admin of each of its groups. Leave the stakeholder groups you don't belong to afterwards.</p>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/** Where a council sits in a loaded structure: its parent, the councils under it, and export. */
+function Structure({ d }: { d: CouncilData }) {
+  const me = myAddr.value;
+  const cid = d.group.id;
+  const facilitator = d.weights?.by ?? d.group.admins[0];
+  const existing = new Set(d.built.map((b) => b.cid));
+  const parent = d.placement?.parent ? d.built.find((b) => b.cid === d.placement!.parent) : undefined;
+  const children = d.built.filter((b) => b.parent === cid);
+  const source = d.placement ? d.built.find((b) => b.cid === d.placement!.source)?.placement?.def : undefined;
+  const later = source ? laterUnder(source, cid, existing) : [];
+  const download = () => {
+    const def = exportDefinition(cid, d.built, source, d.group.name);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(def, null, 2)], { type: "application/json" }));
+    a.download = `${cid}.council.json`;
+    a.click();
+  };
+  return (
+    <div class="section">
+      {parent && <p class="small">Part of <a href={"#" + cHref(parent.cid)}>{parent.name}</a>.</p>}
+      {(children.length > 0 || later.length > 0) && (
+        <div class="card soft">
+          <h3>Councils under this one</h3>
+          {children.map((b) => <div class="row between"><a href={"#" + cHref(b.cid)}>{b.name}</a><span class="muted small">{b.chambers.length} stakeholder groups</span></div>)}
+          {later.map((c) => (
+            <div class="row between">
+              <span>{c.name} <span class="muted small">not created yet · {c.chambers.map((ch) => ch.name).join(", ")}</span></span>
+              {me === facilitator && <button class="small" onClick={async () => { if (await createFrom(source!, [c])) go(cHref(councilIdOf(c.slug))); }}>Create it now</button>}
+            </div>
+          ))}
+          {later.length > 0 && me !== facilitator && <p class="muted small">{nameOf(facilitator)} creates these when a question of their kind comes up.</p>}
+        </div>
+      )}
+      <div class="row" style={{ marginTop: ".5rem" }}>
+        <button class="ghost small" onClick={download}>Export as a template</button>
+        <Info>Saves this council, the councils under it and any not yet created as a definition file another community can load with <b>Load a template</b>.</Info>
+      </div>
     </div>
   );
 }
@@ -190,6 +321,7 @@ export function CouncilScreen({ cid, tab = "decisions", sub }: { cid: string; ta
             ))}
           </div>
           {tab === "stakeholders" ? <><Stakeholders d={d} /><AddStakeholderGroup d={d} /></> : tab === "power" ? <PowerPanel d={d} /> : <Decisions d={d} />}
+          <Structure d={d} />
         </div>
       );
     }}</Loading>
@@ -560,16 +692,19 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
   const G = gov.value!;
   const me = myAddr.value;
   const rec = recordOf(i);
-  const phaseIx = PHASES.findIndex((p) => p.id === rec.phase);
   const facilitator = me === i.by;
   const power = chamberPower(d.chambers.map((c) => c.id), d.weights);
   const total = combine(i.options, results, power);
+  // The phase shown is the facilitator's record, stepped forward by any gates that hold (gates.ts).
+  const ph = phaseOf(rec.phase, rec.hold, { decision: i, args, results, power });
+  const phaseIx = PHASES.findIndex((p) => p.id === ph.phase);
+  const closed = rec.phase === "decided";
   const myChambers = d.chambers.filter((ch) => isMemberOf(ch, me));
   const onRoll = !!me && i.voters.includes(me);
   const [recording, setRecording] = useState(false);
   const [delegIn, setDelegIn] = useState<Group | null>(null);
 
-  const setPhase = (phase: PhaseId) => act(`Moving to “${PHASES.find((p) => p.id === phase)!.name}”`, (t) => G.proposeTerm(i.id, `{"phase": ${q(phase)}}`, t), { risk: "consequential", key: `phase:${i.id}:${phase}` });
+  const setPhase = (phase: PhaseId, hold = false) => act(`Moving to “${PHASES.find((p) => p.id === phase)!.name}”`, (t) => G.proposeTerm(i.id, hold ? `{"phase": ${q(phase)}, "hold": true}` : `{"phase": ${q(phase)}}`, t), { risk: "consequential", key: `phase:${i.id}:${phase}` });
 
   return (
     <div>
@@ -586,7 +721,8 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
         ))}
       </div>
       <p class="muted small">{PHASES[phaseIx].what}</p>
-      {me && !onRoll && rec.phase !== "decided" && (
+      {!closed && <GateNote ph={ph} by={i.by} />}
+      {me && !onRoll && !closed && (
         // Someone who joined after the decision opened can read it but not take part
         // yet: say so, and what happens next, instead of greyed-out buttons (#83).
         <div class="callout warn small section">
@@ -598,13 +734,13 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
 
       {args?.title && args.title !== i.title && <div class="card soft section"><b>Background</b><Markdown text={args.title} /></div>}
 
-      {rec.phase === "decided" && <RecordView i={i} rec={rec} args={args} />}
+      {closed && <RecordView i={i} rec={rec} args={args} />}
 
-      {facilitator && rec.phase !== "decided" && <WaitingPanel d={d} issues={[i, ...(args ? [args] : [])]} what="this decision" />}
+      {facilitator && !closed && <WaitingPanel d={d} issues={[i, ...(args ? [args] : [])]} what="this decision" />}
 
-      <div class="section"><Deliberation i={i} args={args} open={rec.phase !== "decided"} /></div>
+      <div class="section"><Deliberation i={i} args={args} open={!closed} /></div>
 
-      {rec.phase === "vote" && (
+      {!closed && (ph.phase === "vote" || ph.phase === "decided") && (
         <div class="section card">
           <h2>Your vote</h2>
           {!me ? null : !onRoll ? <p class="muted small">You can vote once you're added to this decision (see above).</p> : (
@@ -621,21 +757,38 @@ function Decision({ d, i, args, results }: { d: CouncilData; i: Issue; args: Iss
         </div>
       )}
 
-      {(rec.phase === "vote" || rec.phase === "decided") && <StakeholderResults i={i} results={results} power={power} total={total} />}
+      {(ph.phase === "vote" || ph.phase === "decided") && <StakeholderResults i={i} results={results} power={power} total={total} />}
 
-      {facilitator && rec.phase !== "decided" && (
+      {facilitator && !closed && (
         <div class="section card">
           <h3>Facilitator</h3>
           <div class="row">
-            {rec.phase === "deliberate" && <button class="primary" onClick={() => setPhase("vote")}>Close deliberation and open voting</button>}
-            {rec.phase === "vote" && <button onClick={() => setPhase("deliberate")}>Back to deliberation</button>}
-            {rec.phase === "vote" && <button class="primary" onClick={() => setRecording(true)}>Record the decision</button>}
-
+            {ph.phase === "deliberate" && <button class="primary" onClick={() => setPhase("vote")}>Open voting now</button>}
+            {ph.phase !== "deliberate" && <button onClick={() => setPhase("deliberate", true)}>Back to deliberation</button>}
+            {(ph.phase === "vote" || ph.phase === "decided") && <button class={ph.phase === "decided" ? "primary" : ""} onClick={() => setRecording(true)}>Record the decision</button>}
+            {rec.hold && <button onClick={() => setPhase("deliberate")}>Let the gates move it again</button>}
           </div>
+          {ph.phase === "decided" && <p class="small muted">The trust gate is met. Recording closes the vote and makes this the decision of record.</p>}
         </div>
       )}
       {recording && <RecordModal i={i} total={total} onClose={() => setRecording(false)} />}
       {delegIn && <DelegateModal g={delegIn} issueId={i.id} issueTitle={i.title} onClose={() => setDelegIn(null)} />}
+    </div>
+  );
+}
+
+/** What the phase shown is waiting for, or that a gate moved it there. */
+function GateNote({ ph, by }: { ph: ReturnType<typeof phaseOf>; by: string }) {
+  const name = PHASES.find((p) => p.id === ph.phase)!.name;
+  return (
+    <div class="small muted" aria-label="Gates">
+      {ph.auto && <div class="callout small" style={{ marginBottom: ".4rem" }}>
+        {ph.phase === "decided"
+          ? <><b>The trust gate is met.</b> One option has enough trust-weighted support to decide. Ballots can still change it until {nameOf(by)} records the decision, which closes it.</>
+          : <><b>Moved to “{name}” by its gates</b>, without waiting for {nameOf(by)}.</>}
+      </div>}
+      {ph.phase !== "decided" && ph.waiting.length > 0 && <div>Moves on by itself when: {ph.waiting.map((w) => <span class={`badge ${w.met ? "" : "warn"}`} style={{ marginRight: ".3rem" }}>{w.met ? "✓ " : ""}{w.says}</span>)}</div>}
+      <Info title="How phases move">Every browser checks the same gates against public data on chain: the points and endorsements on the deliberation board, which stakeholder groups have voted, and the trust-weighted score the node computes for each group. When a phase's gates all hold, everyone sees the decision in the next phase at once. Nothing is written until the facilitator records the decision, so support that falls below the gate first takes it back to voting.</Info>
     </div>
   );
 }

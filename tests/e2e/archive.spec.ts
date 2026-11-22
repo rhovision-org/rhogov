@@ -159,6 +159,11 @@ async function fixture(
       }
 
       if (refuseStorage) {
+        // No backup store either, or rhogov would keep the import there.
+        IDBFactory.prototype.open = function () {
+          throw new DOMException("Refused", "SecurityError");
+        };
+
         const original =
           Storage.prototype
             .setItem;

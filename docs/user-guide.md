@@ -393,6 +393,10 @@ Some decisions affect very different groups of people: users, developers,
 validators, token holders. A **council** gives each of those groups its own voice
 and lets everyone decide together how much weight each voice gets.
 
+Where councils are going next (reusable components, process templates, and a
+hierarchy of councils for rholo governance) is described in
+[RhoGov process orchestration](process-orchestration.md).
+
 ### Setting one up
 
 Open **Councils** and press **＋ New council**. Give it a name and a short
@@ -404,6 +408,31 @@ stakeholders whose standing should be checked, such as validators.
 The person who creates a council is its **facilitator**. They start out as a
 member of every stakeholder group, so they should **leave the ones they don't
 belong to** (Stakeholder groups tab).
+
+### Loading a template
+
+A **template** sets up a whole structure of councils at once. Open **Councils**
+and press **Load a template…**. Paste a council definition, choose a `.json`
+file, or press **Start from the rholo template**, which declares a network
+council where every rholo stakeholder group has a voice and issue councils
+under it (node upgrades, protocol proposals, treasury, fees, integration
+standards, charter and appointments).
+
+rhogov checks the definition before anything is signed and lists what it will
+create. If something is wrong, it says what to fix and creates nothing; a
+council that already exists in the community is never written over. The
+councils it creates now take two deploys: one for all their groups, one for
+their voting-power estimates and the definition itself.
+
+A council marked **later** isn't created until it's needed. Its parent's page
+lists it under **Councils under this one**, and the facilitator presses
+**Create it now** the first time a question of its kind comes up. A council
+created from a template says which council it's part of.
+
+**Export as a template**, at the foot of any council's page, saves that council,
+the councils under it and any not yet created as a definition file another
+community can load. The format is described in
+[RhoGov process orchestration](process-orchestration.md#the-council-component-deciding-how-we-decide).
 
 ### Joining
 
@@ -446,17 +475,27 @@ while its power is 0%.
 
 The facilitator starts a decision with **＋ New decision**: the question, the
 background (the problem and what success looks like), and the options. It then
-moves through four phases:
+moves through four phases. A phase moves on **by itself** when its **gates** hold,
+so nobody has to wait for the facilitator to notice; the decision page lists what
+the current phase is waiting for:
 
 1. **Prepare**: the facilitator frames the question and the options.
 2. **Deliberate**: everyone adds the strongest **points for and against** each
    option and **👍 endorses** the points they find convincing, whichever way
    they'll vote.
-3. **Decide**: the facilitator opens voting. Everyone ticks the options they
-   can live with.
+3. **Decide**: voting opens once the board has at least **two points** and **two
+   people** endorsing them (the facilitator can also open it early). Everyone ticks
+   the options they can live with. Once **every stakeholder group has voted** and one
+   option has at least **two-thirds of the trust-weighted score**, the page says the
+   trust gate is met and the decision is ready to record.
 4. **Record & follow up**: the facilitator records the **decision of record**:
    the outcome, the reasoning, and the **action items** (who does what, by
    when). Points made against the chosen option are kept as **recorded dissent**.
+
+Gates are checked by every browser against the same public data, and nothing is
+written when one is met: if support falls below the gate before the decision is
+recorded, the page goes back to voting. A facilitator who takes a decision **Back
+to deliberation** holds it there until they let the gates move it again.
 
 ![Pros and cons](images/council-deliberation.png)
 
@@ -629,6 +668,8 @@ chose; there's no rhogov server, database or account.
 | **"“Name” is taken"** | Someone else in this community already uses that name. Choose another on **Account**. |
 | **"This network was reset"** | The network now runs a new chain, and nothing from before is on it. Choose **Keep my identity** (or a new key for that network), then join or start a community again. See [More than one network, and a network that is reset](#more-than-one-network-and-a-network-that-is-reset). |
 | **"A new version of rhogov is available"** | A newer rhogov was published while your page was open. Press **Reload** (nothing you've done is lost), or **Later**. The version you're running is shown at the bottom of the menu. |
+| **"This browser isn't saving rhogov's data"** | The browser's storage for this site is full or switched off, so a reload would lose your key and communities. Save your key as a keystore file on **Account** straight away, then free storage for the site in the browser's settings. The allowance is shared with every app published at the same address (quantum-os sits beside rhogov), so their data counts too. While a backup store is available rhogov keeps your data there instead, Help says so, and nothing is lost. |
+| **"This is a keystore file (your key), not an inbox archive"** | **Import archive** on the Inbox takes saved messages. A key goes in on the welcome screen: on **Account** choose **Remove from this browser**, then **I have a key** and give it the keystore file. |
 | **Something looks out of date** | rhogov re-reads every 15 seconds; your own actions show up straight away. Reloading the page also works. |
 
 ## 13. Glossary

@@ -5,7 +5,9 @@ import { Help } from "./ui/help";
 import { UpdateBanner, watchForUpdates } from "./ui/update";
 import { checkInbox, startInboxWatch, titleWithCount, waitingCount } from "./ui/inbox-watch";
 import "./styles.css";
-import { active, chainChecked, chainReset, checkChain, currentNode, displayName, myAddr, refreshTick } from "./state";
+import { notKept, openBackup } from "./storage";
+import logo from "./assets/rhogov-logo.svg";
+import { active, chainChecked, reloadFromStorage, chainReset, checkChain, currentNode, displayName, myAddr, refreshTick } from "./state";
 import { AccountScreen, CommunityScreen, JoinScreen } from "./ui/settings";
 import { GroupScreen, GroupsScreen } from "./ui/groups";
 import { HomeScreen } from "./ui/home";
@@ -45,6 +47,17 @@ function Page() {
   }
 }
 
+/** Neither localStorage nor its backup kept a write: say so before a reload loses it. */
+function StorageBanner() {
+  if (!notKept.value) return null;
+  return (
+    <div class="update warn" role="alert">
+      <span><b>This browser isn't saving rhogov's data.</b> Its storage is full or switched off, so your key and communities will be gone when this page reloads. Save your key as a keystore file now (Account), then free some storage for this site in the browser's settings.</span>
+      <a class="btn primary small" href="#/account">Save my key</a>
+    </div>
+  );
+}
+
 function App() {
   const ready = !!myAddr.value && !!active.value && chainChecked.value && !chainReset.value;
   // Which chain the node serves: on arrival, on switching networks, and about once
@@ -61,7 +74,7 @@ function App() {
   return (
     <div class="app">
       <nav class="side">
-        <div class="brand"><span class="logo">ρ</span> rhogov</div>
+        <div class="brand"><img src={logo} alt="rhogov" /></div>
         {ready && <a class="side-community" href="#/community" title={`${active.value!.name}: invite people, switch communities`}>{active.value!.name}</a>}
         {ready && <div class="nav">{NAV.map(([p, icon, label]) => <a href={`#${p}`} class={on(p) ? "on" : ""}><span aria-hidden="true">{icon}</span> {label}{p === "/inbox" && (waitingCount.value ?? 0) > 0 && <span class="count" aria-label={`${waitingCount.value} new`}>{waitingCount.value}</span>}</a>)}</div>}
         <Help />
@@ -70,6 +83,7 @@ function App() {
       </nav>
       <main>
         <UpdateBanner />
+        <StorageBanner />
         {/* On phones the side bar is a tab bar with no room for the community, so it heads the page. */}
         {ready && <a class="community-bar" href="#/community">{active.value!.name}</a>}
         <Page />
@@ -80,6 +94,22 @@ function App() {
   );
 }
 
-render(<App />, document.getElementById("app")!);
-watchForUpdates();
-startInboxWatch();
+// What localStorage couldn't hold is in IndexedDB, which opens asynchronously:
+// read it before the first draw, so a full storage doesn't look like no key.
+void openBackup().then(() => {
+  reloadFromStorage();
+  start();
+});
+
+function start() {
+  // The setup page stays in the address bar after "Join or start another
+  // community", so reloading there (for a new version, say) showed setup again to
+  // someone already set up, as if their key were gone. A fresh load lands on Home.
+  if (route.value.parts[0] === "welcome" && myAddr.value && active.value) {
+    history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+    route.value = { ...route.value, path: "/", parts: [] };
+  }
+  render(<App />, document.getElementById("app")!);
+  watchForUpdates();
+  startInboxWatch();
+}

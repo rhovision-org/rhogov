@@ -12,6 +12,7 @@ import { nameProblem } from "./name-sync";
 import { newVersion } from "./update";
 import { backgroundNotificationChoice, notificationAvailable } from "./inbox-watch";
 import { readPendingInstall, setupNode } from "./setup";
+import { inBackup, notKept, usage } from "../storage";
 
 const REPO = "https://github.com/rhovision-org/rhogov";
 export const GUIDE = `${REPO}/blob/main/docs/user-guide.md`;
@@ -36,7 +37,7 @@ function screenHelp(): { title: string; text: string; link: string } {
       if (tab === "members") return { title: "Members", text: "Who is in the group, how much they're trusted, and who votes for whom. Rate trust, hand your vote to someone, or dispute someone's trust from here. Admins approve requests to join here, each in one step: invite, and say how much they trust the person. On newer communities an admin can also withdraw an invitation nobody has taken up yet.", link: section("6-trust") };
       return { title: "A group", text: "Its votes, members and settings. Open a vote, or vote on one that's open.", link: section("3-groups") };
     case "v": return { title: "A vote", text: "Read the description, if the opener wrote one, then choose one or more options (or rank them) and press Vote. You can change your vote while it's open. The node counts it, with trust and delegation. People who join the group before anyone votes are added when whoever opened the vote next looks at it; after that, the opener adds them with a press.", link: section("4-voting") };
-    case "councils": case "c": return { title: "Councils", text: "Decisions across stakeholder groups: estimate each group's voting power, deliberate with pros and cons, then vote. The facilitator can add a stakeholder group later, and invites people in by picking them from the community's newcomers or typing a name.", link: section("9-councils-decisions-across-stakeholder-groups") };
+    case "councils": case "c": return { title: "Councils", text: "Decisions across stakeholder groups: estimate each group's voting power, deliberate with pros and cons, then vote. Phases move on by themselves when their gates hold (the decision page shows what each is waiting for); the facilitator records the outcome. Load a template… creates a whole structure of councils from one definition (councils marked later are created from their parent's page when needed), and Export as a template saves one. The facilitator can add a stakeholder group later, and invites people in by picking them from the community's newcomers or typing a name.", link: section("9-councils-decisions-across-stakeholder-groups") };
     case "inbox": return { title: "Inbox", text: "Messages and invitations. Invitations come from the group's on-chain state and follow your key; collected notes and messages live in this browser. “Read, leave on chain” shows waiting messages without collecting them, so any browser with your key can still read them; each read costs a small fee. Search history looks through the messages you've collected, which the community's Inbox keeps (newest 500) for your key alone: search by sender, kind or subject, from any browser with your key; each search costs a small fee, and you can delete a message from it. Export archive saves the collected messages to a readable JSON file, without your key. Import it in another browser with the same key and community; existing messages stay and repeated imports add no extra copies. This costs no fee and does not restore messages on chain. Files can be edited, so imported messages are not proof of their sender. Background system notifications are optional: rhogov asks only after you press Enable notifications, then a hidden tab checks about every five minutes.", link: section("8-inbox") };
     case "community": return { title: "Community", text: "The invite link to share, switching communities, and communities kept from a network's earlier chain. This browser remembers which communities you've joined; use a community's invite link to open it on another device. The network address and the three contract addresses are under “Where it lives”, closed by default — you only need them to wire rhogov to a quantum-os room or a node.", link: section("2-communities-and-invitations") };
     case "account": return { title: "Account", text: "Your name, your address, your balance, saving your key as a password-protected keystore file, signed actions rhogov is still waiting to hear about (Check it looks one up), and recovering a remembered decline of background Inbox notifications without prompting automatically.", link: section("10-your-account-and-your-key") };
@@ -53,6 +54,13 @@ async function tipsFor(): Promise<Tip[]> {
   const tips: Tip[] = [];
   const c = active.value, me = myAddr.value, G = gov.value;
   if (newVersion.value) tips.push({ text: "A newer version of rhogov is available.", href: "javascript:location.reload()", label: "Reload" });
+  if (inBackup.value.length) {
+    const { other } = usage();
+    tips.push({
+      text: <>This site's browser storage is full{other > 1_000_000 ? ", mostly with other apps published at the same address (such as quantum-os)" : ""}, so rhogov keeps what it can't fit there in a backup store in this browser. Nothing is lost, but a keystore file of your key is worth having.</>,
+      href: "#/account", label: "Save key",
+    });
+  }
   if (!me) return [...tips, { text: "Create or bring your key: it's your identity here, and it signs everything you do.", href: "#/welcome", label: "Set up" }];
   // The install form scopes its reminder to the chosen network and identity.
   const nodeUrl = route.value.parts[0] === "welcome" || !c ? setupNode.value : c.node;
@@ -194,6 +202,7 @@ async function snapshot(): Promise<string> {
     const bal = await new RNode(c.node).balance(me).catch(() => null);
     lines.push(`- balance: ${bal === null ? "couldn't read" : `${bal / 1e8} REV`}`);
   }
+  { const u = usage(); lines.push(`- storage: rhogov ${Math.round(u.rhogov / 1000)}k chars, other apps on this site ${Math.round(u.other / 1000)}k${inBackup.value.length ? ` · ${inBackup.value.length} item(s) in the backup store` : ""}${notKept.value ? " · a write was NOT kept" : ""}`); }
   lines.push(`- review before signing: ${reviewBeforeSign.value ? "on" : "off"}`);
   const tips = await tipsFor().catch(() => []);
   lines.push("", "**What rhogov's Help suggested**", "");
