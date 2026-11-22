@@ -88,3 +88,20 @@ assert.equal(auditCharterEvidence({...envelope,tally:{...envelope.tally,reproduc
 assert.equal(auditCharterEvidence(envelope,{...expected,groupId:"other"},threeAudit).ready,false);
 assert.equal(auditCharterEvidence(envelope,expected,{...threeAudit,ok:false}).ready,false);
 console.log("PASS: evidence gate rejects policy, tally, finality, identity and ballot mismatches");
+
+// Cross-repo negative vector: an attributed member is never a dyncap signer,
+// even with a newly computed content hash and valid wallet authorization.
+const withMemberSignature = {...vector.content, members: vector.content.members.map((m:any,i:number)=>i===0?{...m,signature:"synthetic-dyncap-claim"}:m)};
+function canonicalForFixture(v:any):string {
+  if (v===null || typeof v!=="object") return JSON.stringify(v);
+  if (Array.isArray(v)) return "["+v.map(canonicalForFixture).join(",")+"]";
+  return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+canonicalForFixture(v[k])).join(",")+"}";
+}
+const encoded = (content:any):ExportedCharter=>{
+  const hash=toHex(sha256(new TextEncoder().encode(canonicalForFixture(content))));
+  const sig=secp256k1.sign(sha256(new TextEncoder().encode("qos:success-charter/1:handoff\n"+hash+"\n"+anchor)),key,{prehash:false,format:"compact"});
+  return {...content,charterHash:hash,signatures:["sc1:"+anchor+":"+toHex(pub)+":"+toHex(sig)]};
+};
+assert.throws(()=>encodeCharterTitle(encoded(withMemberSignature)), /signature|dyncap/i);
+assert.throws(()=>verifyCharterSignatures(encoded(withMemberSignature),group), /signature|dyncap/i);
+console.log("PASS: cross-repo dyncap member signature exclusion");

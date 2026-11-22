@@ -38,7 +38,7 @@ export interface ExportedCharter {
   charterHash: string;
   signatures: string[];
   proposer: string;
-  members: {anchor:string; role:"admin"|"member"; signature?:string}[];
+  members: {anchor:string; role:"admin"|"member"; signature?:never}[];
   [key:string]: unknown;
 }
 export function encodeCharterTitle(charter: ExportedCharter): string {
@@ -47,6 +47,10 @@ export function encodeCharterTitle(charter: ExportedCharter): string {
   // Parse and rehash in exactly the same way an independent reader will.
   parseCharterTitle(title);
   return title;
+}
+function rejectMemberSignatureClaims(charter: ExportedCharter): void {
+  if (charter.members.some(m => !m || typeof m !== "object" || "signature" in m))
+    throw new Error("member.signature is unsupported: dyncap is hash-only TOFU, not signing");
 }
 export function parseCharterTitle(title: string): ExportedCharter {
   if (typeof title !== "string" || !title.startsWith(CHARTER_TITLE_PREFIX) || title.length > 12000)
@@ -57,6 +61,7 @@ export function parseCharterTitle(title: string): ExportedCharter {
   if (charter?.schema !== "success-charter/1" || charter?.version !== 1
       || !hex64.test(charter?.charterHash || "") || !Array.isArray(charter?.signatures)
       || !Array.isArray(charter?.members) || !charter.group?.id) throw new Error("bad charter schema");
+  rejectMemberSignatureClaims(charter);
   if (/cap:room:/i.test(canonical(charter)) || /room[_-]?cap/i.test(canonical(charter)))
     throw new Error("raw room capability forbidden");
   if (CHARTER_TITLE_PREFIX + encodeURIComponent(canonical(charter)) !== title)
@@ -80,6 +85,7 @@ function walletAddress(pub: string): string {
 }
 export function verifyCharterSignatures(charter: ExportedCharter,
                                         chainMembers: {addr:string;role:string}[]): void {
+  rejectMemberSignatureClaims(charter);
   const seen = new Set<string>();
   let admin=false;
   const anchors=new Map(charter.members.map((m)=>[m.anchor,m.role]));
