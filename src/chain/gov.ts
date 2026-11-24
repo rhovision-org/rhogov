@@ -632,6 +632,40 @@ export class Gov {
     return messagesOf(asMap((lockers.inbox ?? null) as RhoValue).msgs ?? null);
   }
 
+  /**
+   * Your received messages, newest first, as the Inbox keeps them (Inbox/4,
+   * quantum-os#241): everything collected since the community was installed,
+   * up to the newest HISTORY_KEEP, without any capability a message carried.
+   * A self verb, so it is a signed deploy and costs a fee; nobody else's key
+   * can ask for your history. `next` is the cursor for the page below, or null.
+   */
+  async history(query: HistoryQuery, cursor: number | null, t?: (s: string) => void): Promise<HistoryPage> {
+    const key = this.key();
+    if (!key) throw new GovError("Set up your identity first (Account).");
+    const term = forDeploy(core.historyProgram(this.c.inbox, query, cursor, core.HISTORY_PAGE));
+    await gate(term, t);
+    const v = await this.node.deploy(term, key, { onTick: t });
+    const first = asList(v[0] ?? null);
+    if (first[0] === "gov-error" && first[1] === "bad verb or arity") throw new GovError(NO_HISTORY);
+    check(v);
+    // A Nil cursor is dropped from the decoded tuple, so a missing third element means "no more".
+    const next = typeof first[2] === "number" ? first[2] : null;
+    return { entries: asList(first[1] ?? null).map(toHistoryEntry), next };
+  }
+
+  /** Delete entries from your history by seq. Unknown seqs are ignored, so a retry is harmless. */
+  async forgetHistory(seqs: number[], t?: (s: string) => void): Promise<number> {
+    const key = this.key();
+    if (!key) throw new GovError("Set up your identity first (Account).");
+    const term = forDeploy(core.forgetHistoryProgram(this.c.inbox, seqs));
+    await gate(term, t);
+    const v = await this.node.deploy(term, key, { onTick: t });
+    const first = asList(v[0] ?? null);
+    if (first[0] === "gov-error" && first[1] === "bad verb or arity") throw new GovError(NO_HISTORY);
+    check(v);
+    return Number(first[1] ?? 0);
+  }
+
   // --- installation ----------------------------------------------------------
 
   /**
@@ -670,6 +704,18 @@ export class Gov {
 }
 
 export interface InboxMessage { from: string; type: string; at: number; fields: Record<string, string> }
+
+export interface HistoryQuery { from?: string; type?: string; title?: string }
+export interface HistoryEntry { seq: number; from: string; type: string; title: string; msg: InboxMessage }
+export interface HistoryPage { entries: HistoryEntry[]; next: number | null }
+
+export const NO_HISTORY = "This community's Inbox was installed before the chain kept a history of messages, so there is none to search. A community started with this version of rhogov keeps one.";
+
+function toHistoryEntry(raw: RhoValue): HistoryEntry {
+  const e = asMap(raw);
+  const msg = messagesOf({ [String(e.type ?? "")]: [e.msg ?? {}] } as RhoValue)[0];
+  return { seq: Number(e.seq ?? 0), from: String(e.from ?? ""), type: String(e.type ?? ""), title: String(e.title ?? ""), msg };
+}
 
 /** The messages in a locker's `msgs` map (type → list), oldest first. */
 function messagesOf(msgs: RhoValue): InboxMessage[] {
