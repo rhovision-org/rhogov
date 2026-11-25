@@ -12,6 +12,10 @@
 // "fromDeployerId"), so a write can only ever touch the caller's own row.
 
 import * as core from "./rgov-core.js";
+import { auditCharterBallots } from "./success-charter";
+import { proposalId as charterProposalId, encodeCharterTitle, parseCharterTitle,
+         verifyCharterSignatures, readCharterIssue, type ExportedCharter, type CharterStatus
+       } from "./success-charter";
 import { revAddressOf } from "./keys";
 import { looksLike, nameError } from "./people";
 import { RNode, type RhoValue, type Tick } from "./node";
@@ -584,6 +588,54 @@ export class Gov {
   /** Record an arbitrary rholang value as this caller's result on an issue. */
   proposeTerm(iid: string, term: string, t?: (s: string) => void) {
     return this.write(this.c.issue, "propose", [q(iid), term], t);
+  }
+
+  // --- QuantumOS success-charter/1 bridge (Issue/4) ---------------------------
+
+  /** Read an Issue/4 proposal; never mutate the group or infer a vote result. */
+  /** Evidence-only read: no policy/quorum promotion from a bare ballot majority. */
+  async successCharterBallotAudit(groupId: string, charterHash: string) {
+    const id=charterProposalId(charterHash);
+    const [issue,group]=await Promise.all([this.issue(id),this.group(groupId)]);
+    if (!issue || !group) throw new GovError("missing chain issue or group");
+    readCharterIssue(issue,groupId,charterHash);
+    return auditCharterBallots(issue,group.members.map(m=>m.addr));
+  }
+
+  async successCharterStatus(groupId: string, charterHash: string): Promise<CharterStatus> {
+    return readCharterIssue(await this.issue(charterProposalId(charterHash)), groupId, charterHash);
+  }
+
+  /**
+   * Human-gated, idempotent export into the existing RhoGov Issue/4 contract.
+   * The exact artifact, not just its hash, is the immutable issue title.
+   * The Tick.review callback must approve the exact rholang before signing.
+   */
+  async handoffSuccessCharter(charter: ExportedCharter, onTick?: Tick):
+    Promise<CharterStatus & {submitted:boolean}> {
+    if (!onTick?.review) throw new GovError("explicit human review is required to hand off a charter");
+    const title=encodeCharterTitle(charter);
+    const group=await this.group(charter.group.id);
+    if (!group) throw new GovError("on-chain group must exist before charter handoff");
+    verifyCharterSignatures(charter,group.members);
+    const id=charterProposalId(charter.charterHash);
+    const prior=await this.issue(id);
+    if (prior) {
+      const got=parseCharterTitle(prior.title);
+      if (got.charterHash!==charter.charterHash || prior.title!==title)
+        throw new GovError("idempotency collision or signature-set mismatch");
+      return {...readCharterIssue(prior, charter.group.id, charter.charterHash), submitted:false};
+    }
+    // A real signed, separately confirmed Issue/4 write. We must never
+    // automatically retry if submission or post-read has an ambiguous outcome.
+    await this.openIssue(id, charter.group.id, title, "approval",
+                         ["approve","reject"], group.members.map((m)=>m.addr), onTick);
+    const after=await this.issue(id);
+    if (!after) return {status:"unknown", proposalId:id,
+                         reason:"submitted but record not yet visible; do not auto-retry",
+                         submitted:true};
+    if (after.title!==title) throw new GovError("post-submit CHAIN_CONTENT_HASH_MISMATCH");
+    return {...readCharterIssue(after,charter.group.id,charter.charterHash),submitted:true};
   }
 
   // --- inbox -----------------------------------------------------------------
