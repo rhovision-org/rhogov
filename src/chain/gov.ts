@@ -614,10 +614,10 @@ export class Gov {
   async handoffSuccessCharter(charter: ExportedCharter, onTick?: Tick):
     Promise<CharterStatus & {submitted:boolean}> {
     if (!onTick?.review) throw new GovError("explicit human review is required to hand off a charter");
+    const title=encodeCharterTitle(charter);
     const group=await this.group(charter.group.id);
     if (!group) throw new GovError("on-chain group must exist before charter handoff");
     verifyCharterSignatures(charter,group.members);
-    const title=encodeCharterTitle(charter);
     const id=charterProposalId(charter.charterHash);
     const prior=await this.issue(id);
     if (prior) {

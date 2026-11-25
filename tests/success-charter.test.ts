@@ -105,3 +105,10 @@ const encoded = (content:any):ExportedCharter=>{
 assert.throws(()=>encodeCharterTitle(encoded(withMemberSignature)), /signature|dyncap/i);
 assert.throws(()=>verifyCharterSignatures(encoded(withMemberSignature),group), /signature|dyncap/i);
 console.log("PASS: cross-repo dyncap member signature exclusion");
+
+const negatives=JSON.parse(readFileSync(new URL("../contract/success-charter-1-negative-vector.json",import.meta.url),"utf8"));
+for(const c of negatives.cases) {
+  const bad=encoded({...vector.content,objectives:[{...vector.content.objectives[0],[c.field]:c.value}]});
+  assert.throws(()=>encodeCharterTitle(bad),/personal-state field/);
+}
+console.log("PASS: shared rehashed and wallet-authorized private-field vectors rejected");

@@ -62,8 +62,9 @@ export function parseCharterTitle(title: string): ExportedCharter {
       || !hex64.test(charter?.charterHash || "") || !Array.isArray(charter?.signatures)
       || !Array.isArray(charter?.members) || !charter.group?.id) throw new Error("bad charter schema");
   rejectMemberSignatureClaims(charter);
-  if (/cap:room:/i.test(canonical(charter)) || /room[_-]?cap/i.test(canonical(charter)))
-    throw new Error("raw room capability forbidden");
+  const text=canonical(charter);
+  if (/cap:room:/i.test(text) || /room[_-]?cap/i.test(text) || /"personal[_-]?(goals?|notes?|habits?)"\s*:/i.test(text))
+    throw new Error("raw room capability or personal-state field is forbidden");
   if (CHARTER_TITLE_PREFIX + encodeURIComponent(canonical(charter)) !== title)
     throw new Error("noncanonical charter title");
   const { charterHash, signatures, ...content } = charter;

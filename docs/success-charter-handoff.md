@@ -63,3 +63,14 @@ The simulateCharterPolicy helper is a deterministic what-if check of turnout, ab
 ## Ratification evidence envelope v1
 
 The read-only auditCharterEvidence gate requires policy version, policy digest and source, a verified historical electorate snapshot, a reproduced native weighted tally with ballot/weight/delegation digests, and a finality proof bound to the same block as the tally. The envelope carries verification flags supplied by an independent verifier; this helper checks shape, binding and declared verification state, **not** signatures, cryptographic membership inclusion, native tally arithmetic, or finality itself. Untrusted callers can forge the flags; the gate is not an authority to promote to approved or rejected. Actual proof verification and adopted council policy remain external prerequisites.
+
+### Transport preflight and privacy parity
+
+Both handoff adapters validate the canonical content hash and reject reserved
+private-state field names (including underscore/hyphen variants) before
+network access. The shared negative fixture exercises rehashed, wallet-authorized
+synthetic private fields: a valid hash or wallet signature does not override
+this restriction. Field-name checks are not semantic detection of sensitive
+information embedded in ordinary free text. QuantumOS status-by-hash inspects
+the same observed record instead of selecting a second moving tip. No change
+to council policy, finality, or status promotion is made.
